@@ -38,6 +38,18 @@ const envSchema = z.object({
     .max(128)
     .regex(/^[A-Za-z0-9._~-]*$/, "APP_AUTH_TOKEN must use URL-safe characters")
     .optional(),
+  AUDIT_HMAC_KEY: z.string().min(32).optional(),
+  AEG_HTTP_ALLOWLIST: z.string().default(""),
+  AEG_HTTP_ALLOW_PRIVATE_NETWORKS: z
+    .enum(["true", "false"])
+    .default("false"),
+  AEG_HTTP_TIMEOUT_MS: z.coerce.number().int().min(250).max(30_000).default(5_000),
+  AEG_HTTP_MAX_RESPONSE_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1_024)
+    .max(1_048_576)
+    .default(65_536),
   ARK_API_KEY: z.string().optional(),
   ARK_MODEL: z.string().optional(),
   ARK_BASE_URL: z
@@ -84,6 +96,13 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
     containerUser: env.CONTAINER_USER?.trim() || defaultContainerUser,
     runtimeInstanceId: env.RUNTIME_INSTANCE_ID,
     authToken,
+    auditHmacKey: env.AUDIT_HMAC_KEY?.trim() ?? "",
+    httpEffectAllowlist: env.AEG_HTTP_ALLOWLIST.split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+    httpEffectAllowPrivateNetworks: env.AEG_HTTP_ALLOW_PRIVATE_NETWORKS === "true",
+    httpEffectTimeoutMs: env.AEG_HTTP_TIMEOUT_MS,
+    httpEffectMaxResponseBytes: env.AEG_HTTP_MAX_RESPONSE_BYTES,
     arkApiKey: env.ARK_API_KEY?.trim() ?? "",
     arkModel: env.ARK_MODEL?.trim() ?? "",
     arkBaseUrl: env.ARK_BASE_URL.replace(/\/+$/, ""),

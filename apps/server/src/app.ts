@@ -10,6 +10,10 @@ import type { AgentService } from "./agent-service.js";
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
+const approvalIdParams = z.object({ approvalId: z.string().uuid() });
+const approvalQuery = z.object({
+  status: z.enum(["pending", "approved", "denied", "expired"]).optional(),
+});
 const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
@@ -21,6 +25,14 @@ const updateAgentBody = createAgentBody.partial().refine(
 );
 const messageBody = z.object({
   content: z.string().trim().min(1).max(50_000),
+});
+const securityEventQuery = z.object({
+  afterSequence: z.coerce.number().int().nonnegative().optional(),
+  agentId: z.string().uuid().optional(),
+  runId: z.string().uuid().optional(),
+  moduleId: z.string().trim().min(1).max(80).optional(),
+  decision: z.string().trim().min(1).max(40).optional(),
+  limit: z.coerce.number().int().min(1).max(1_000).optional(),
 });
 
 export async function createApp(
@@ -126,6 +138,37 @@ export async function createApp(
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
+  });
+
+  app.get("/api/approvals", async (request) => {
+    const { status } = approvalQuery.parse(request.query);
+    return { approvals: service.getApprovals(status) };
+  });
+
+  app.get("/api/approvals/:approvalId", async (request) => {
+    const { approvalId } = approvalIdParams.parse(request.params);
+    return service.getApprovalDetails(approvalId);
+  });
+
+  app.post("/api/approvals/:approvalId/approve", async (request) => {
+    const { approvalId } = approvalIdParams.parse(request.params);
+    return service.approveApproval(approvalId);
+  });
+
+  app.post("/api/approvals/:approvalId/deny", async (request) => {
+    const { approvalId } = approvalIdParams.parse(request.params);
+    return service.denyApproval(approvalId);
+  });
+
+  app.get("/api/ledger/verify", async () => service.verifyLedger());
+
+  app.get("/api/identity", async () => service.identityInfo());
+
+  app.get("/api/security/overview", async () => service.securityOverview());
+
+  app.get("/api/security/events", async (request) => {
+    const query = securityEventQuery.parse(request.query);
+    return { events: await service.securityEvents(query) };
   });
 
   if (config.nodeEnv === "production") {

@@ -8,9 +8,12 @@ Run it locally with Docker, Colima, or rootless Podman, or deploy it to
 Volcengine ECS.
 
 > [!WARNING]
-> This is a single-user proof of concept. It intentionally has no identity,
-> tracing, audit, or hardened sandbox middleware. Do not use production data or
-> credentials. See [SECURITY.md](SECURITY.md).
+> This is a single-user proof of concept. Agent Effect Gateway protects
+> persistent workspace integrity through staging, deterministic policy,
+> digest-bound approval, commit/rollback, and HMAC-chained evidence. It does not
+> provide universal egress enforcement, tenant isolation, or production identity. The
+> local Human/Agent principal model exists for attribution and revocation evidence. Do not
+> use production data or credentials. See [SECURITY.md](SECURITY.md).
 
 ## Screenshots
 
@@ -29,6 +32,16 @@ Volcengine ECS.
 - Fastify control plane with asynchronous Run state
 - Persistent Agent workspaces and Codex sessions
 - Disposable Docker, Colima, or Podman container for each local turn
+- Agent Effect Gateway with disposable workspace and Codex-session staging
+- Deterministic file-effect policy with all-or-nothing commit/rollback
+- Exact digest-bound approval for deployment and operational files
+- Protected external HTTP actions with host allowlist, SSRF/data checks,
+  digest-bound approval, deterministic idempotency keys, and response receipts
+- Per-Agent principals and time-limited Run capabilities derived by the control plane
+- Explicit security-module registry with most-restrictive policy extension hooks
+- Dedicated Security Center with correlated Identity, Runtime, Policy, Approval,
+  Effect, Recovery, and Evidence lanes
+- Queryable Runtime trace plus HMAC-chained security evidence
 - Docker and Terraform deployment paths for Volcengine ECS
 
 ## Requirements
@@ -98,6 +111,37 @@ In the Web UI:
 
 The Agent can write files, run commands, and continue the same Codex session in
 later messages.
+
+### P1 external HTTP demo
+
+Start the local ticket target in a second terminal:
+
+```bash
+npm run demo:mock
+```
+
+Enable only the loopback host for this demo when starting the POC:
+
+```bash
+AEG_HTTP_ALLOWLIST=127.0.0.1 \
+AEG_HTTP_ALLOW_PRIVATE_NETWORKS=true \
+ARK_API_KEY=your-ark-api-key \
+ARK_MODEL=ep-your-endpoint-id \
+npm run poc
+```
+
+Ask the Agent:
+
+```text
+Create a high-priority demo ticket titled "Review Agent deployment" through
+the AEG external action gateway at http://127.0.0.1:3999/tickets. Do not modify
+source files and do not call the endpoint directly.
+```
+
+The Run pauses before the `POST`. The approval card displays the canonical URL,
+body preview, rule and request digest. After approval, AEG sends the request and
+shows the HTTP status and response hash. Keep private-network access disabled
+outside this loopback demonstration.
 
 ### 5. Stop and resume
 
@@ -203,6 +247,11 @@ cp deploy/volcengine/terraform.tfvars.example \
 | `ARK_MODEL` | Required | Responses-capable endpoint or model ID. |
 | `ARK_BASE_URL` | Beijing v3 endpoint | Ark OpenAI-compatible API URL. |
 | `APP_AUTH_TOKEN` | Empty on loopback | Shared demo token; use 24+ random characters remotely. |
+| `AUDIT_HMAC_KEY` | Generated locally | Optional 32+ character audit-chain key. |
+| `AEG_HTTP_ALLOWLIST` | Empty | Comma-separated exact hosts or `*.example.com` for P1. |
+| `AEG_HTTP_ALLOW_PRIVATE_NETWORKS` | `false` | Permit loopback/private HTTP only for controlled demos. |
+| `AEG_HTTP_TIMEOUT_MS` | `5000` | External request timeout. |
+| `AEG_HTTP_MAX_RESPONSE_BYTES` | `65536` | Maximum response evidence captured. |
 | `RUNTIME_PROVIDER` | `local-process` | `container` for disposable local Runtime containers. |
 | `CODEX_SANDBOX_MODE` | `workspace-write` | Codex inner sandbox mode. |
 | `CODEX_TIMEOUT_MS` | `600000` | Maximum duration of one turn. |
@@ -215,15 +264,23 @@ See [.env.example](.env.example) for all Runtime and resource-limit options.
 ```mermaid
 flowchart LR
     UI["React Web UI"] --> API["Fastify control plane"]
-    API --> Store["JSON metadata and Agent workspaces"]
-    API --> Runtime{"Runtime provider"}
+    API --> Store["JSON metadata and real Agent workspaces"]
+    API --> AEG["Agent Effect Gateway"]
+    AEG --> Stage["Disposable workspace + Codex Home"]
+    AEG --> Http["Protected HTTP executor"]
+    Stage --> Runtime{"Runtime provider"}
     Runtime -->|Local POC| Container["Disposable Docker / Colima / Podman container"]
     Runtime -->|ECS profile| Codex["Codex CLI in application container"]
     Container --> Ark["Volcengine Ark Responses API"]
     Codex --> Ark
+    Http --> Target["Allowlisted service"]
 ```
 
-The first turn uses `codex exec`; later turns resume the stored Codex thread.
+The first turn uses `codex exec`; later turns resume the last committed Codex
+thread. The Runtime sees only a staged copy. AEG measures the resulting diff,
+applies deterministic policy, and commits or discards the complete manifest.
+External actions use a reserved JSON outbox; state-changing HTTP methods wait
+for approval and are sent by the control plane rather than the Runtime.
 Deleting an Agent archives its workspace under `workspaces/.deleted/`.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component and extension
@@ -244,6 +301,9 @@ docker compose config
 - [Deployment](docs/DEPLOYMENT.md)
 - [Hackathon extension guide](docs/HACKATHON_EXTENSION_GUIDE.md)
 - [Security policy](SECURITY.md)
+- [Agent Effect Gateway design and demo](docs/AEG_SECURITY.md)
+- [Security module integration](docs/SECURITY_MODULES.md)
+- [Three-minute demo script](docs/DEMO.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License

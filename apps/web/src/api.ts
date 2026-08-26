@@ -1,4 +1,13 @@
-import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import type {
+  Agent,
+  AgentRun,
+  Approval,
+  EffectPreview,
+  Message,
+  SecurityEvent,
+  SecurityOverview,
+  SystemInfo,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -78,4 +87,34 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
+  approvals: (status = "pending") =>
+    request<{ approvals: Approval[] }>("/api/approvals?status=" + status),
+  approval: (approvalId: string) =>
+    request<{
+      approval: Approval;
+      run: AgentRun;
+      previews: EffectPreview[];
+      currentWorkspaceHash: string;
+    }>(
+      "/api/approvals/" + approvalId,
+    ),
+  approve: (approvalId: string) =>
+    request<{ approval: Approval; run: AgentRun }>(
+      "/api/approvals/" + approvalId + "/approve",
+      { method: "POST" },
+    ),
+  deny: (approvalId: string) =>
+    request<{ approval: Approval; run: AgentRun }>(
+      "/api/approvals/" + approvalId + "/deny",
+      { method: "POST" },
+    ),
+  verifyLedger: () =>
+    request<{ valid: boolean; events: number; brokenAt: number | null; head: string }>(
+      "/api/ledger/verify",
+    ),
+  securityOverview: () => request<SecurityOverview>("/api/security/overview"),
+  securityEvents: (query = "") =>
+    request<{ events: SecurityEvent[] }>(
+      "/api/security/events" + (query ? "?" + query : ""),
+    ),
 };

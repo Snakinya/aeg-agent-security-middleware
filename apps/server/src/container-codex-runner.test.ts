@@ -20,8 +20,10 @@ describe("Container Codex runner", () => {
     });
     const args = buildContainerRunArgs(
       {
+        runId: "run",
         agentId: "agent/unsafe",
         workspacePath: "/tmp/agent-workspace",
+        codexHomePath: "/tmp/codex-home",
         prompt: "write a small program",
         threadId: null,
       },
@@ -50,8 +52,10 @@ describe("Container Codex runner", () => {
     });
     const args = buildContainerRunArgs(
       {
+        runId: "run",
         agentId: "agent",
         workspacePath: "/tmp/workspace",
+        codexHomePath: "/tmp/codex-home",
         prompt: "continue",
         threadId: "thread-123",
       },

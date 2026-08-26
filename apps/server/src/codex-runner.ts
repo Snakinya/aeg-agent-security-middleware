@@ -17,6 +17,7 @@ export interface ParsedEvents {
   threadId: string | null;
   usage: RunUsage | null;
   errors: string[];
+  trace: RunnerResult["trace"];
 }
 
 export function buildCodexArgs(
@@ -57,6 +58,34 @@ export function parseCodexEventLine(line: string, parsed: ParsedEvents): void {
     const item = event.item as Record<string, unknown>;
     if (item.type === "agent_message" && typeof item.text === "string") {
       parsed.messages.push(item.text);
+    }
+    if (["command_execution", "file_change", "mcp_tool_call"].includes(String(item.type))) {
+      const command = typeof item.command === "string" ? item.command : null;
+      const path = typeof item.path === "string" ? item.path : null;
+      const toolName = typeof item.tool === "string"
+        ? item.tool
+        : typeof item.name === "string"
+          ? item.name
+          : null;
+      const resources = [
+        ...(path ? [path] : []),
+        ...(Array.isArray(item.changes)
+          ? item.changes.flatMap((change) => {
+              if (!change || typeof change !== "object") return [];
+              const changedPath = (change as Record<string, unknown>).path;
+              return typeof changedPath === "string" ? [changedPath] : [];
+            })
+          : []),
+      ];
+      parsed.trace.push({
+        type: item.type as "command_execution" | "file_change" | "mcp_tool_call",
+        summary: (
+          command ??
+          (resources.length > 0 ? resources.join(", ") : toolName ?? String(item.type))
+        ).slice(0, 1_000),
+        resources,
+        exitCode: typeof item.exit_code === "number" ? item.exit_code : null,
+      });
     }
   }
 
@@ -132,7 +161,7 @@ export class CodexRunner implements AgentRunner {
     const args = buildCodexArgs(request, this.config.codexSandboxMode);
     const child = spawn(this.config.codexBin, args, {
       cwd: request.workspacePath,
-      env: this.childEnvironment(),
+      env: this.childEnvironment(request.codexHomePath),
       stdio: ["ignore", "pipe", "pipe"],
     });
     const settled = new Promise<void>((resolve) => {
@@ -154,6 +183,7 @@ export class CodexRunner implements AgentRunner {
       threadId: request.threadId,
       usage: null,
       errors: [],
+      trace: [],
     };
     let stdout = "";
     let stderr = "";
@@ -219,6 +249,7 @@ export class CodexRunner implements AgentRunner {
         output,
         threadId: parsed.threadId,
         usage: parsed.usage,
+        trace: parsed.trace,
       };
     } finally {
       clearTimeout(timeout);
@@ -239,7 +270,7 @@ export class CodexRunner implements AgentRunner {
     }
   }
 
-  private childEnvironment(): NodeJS.ProcessEnv {
+  private childEnvironment(codexHome = this.config.codexHome): NodeJS.ProcessEnv {
     const inheritedNames = [
       "PATH",
       "HOME",
@@ -255,7 +286,7 @@ export class CodexRunner implements AgentRunner {
       "TERM",
     ] as const;
     const environment: NodeJS.ProcessEnv = {
-      CODEX_HOME: this.config.codexHome,
+      CODEX_HOME: codexHome,
       ARK_API_KEY: this.config.arkApiKey,
       NO_COLOR: "1",
     };

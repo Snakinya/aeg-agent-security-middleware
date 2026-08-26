@@ -19,7 +19,7 @@ export class WorkspaceManager {
     await this.writeInstructions(agent);
     await writeFile(
       path.join(agent.workspacePath, ".gitignore"),
-      [".codex/", "node_modules/", "dist/", ".env", "*.log", ""].join("\n"),
+      [".codex/", ".aeg/", "node_modules/", "dist/", ".env", "*.log", ""].join("\n"),
       "utf8",
     );
     await writeFile(
@@ -53,6 +53,15 @@ export class WorkspaceManager {
       "- Preserve existing user files and avoid destructive operations.",
       "- Build and test changes when practical.",
       "- Never print environment variables or credentials.",
+      "",
+      "## External action gateway",
+      "",
+      "- Do not use curl, wget, browser automation, or SDKs for external service actions.",
+      "- Declare one HTTP request in .aeg/external-effects.json for the trusted control plane.",
+      "- Use this exact shape: {\"version\":1,\"requests\":[{\"method\":\"POST\",\"url\":\"https://allowed.example/path\",\"headers\":{\"content-type\":\"application/json\"},\"body\":{}}]}.",
+      "- Keep external-action Runs separate from source-code or file changes.",
+      "- Never place credentials, cookies, authorization headers, secrets, or tokens in the request.",
+      "- State-changing requests pause for exact human approval before AEG sends them.",
       "",
       "This file is regenerated when the Agent configuration is updated.",
       "",

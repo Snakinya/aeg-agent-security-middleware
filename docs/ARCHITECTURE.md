@@ -1,82 +1,163 @@
-# Architecture
+# Zero-Trust Agent Effect Gateway Architecture
 
-Volc Agent Launchpad is a single-node control plane for hackathon use.
+Agent Effect Gateway (AEG) is a trusted mediation layer around the existing
+Codex Runtime. Its security contract covers persistent workspace and committed
+Codex-session integrity, plus external HTTP actions declared through AEG. A
+typed module registry, Run-scoped delegation, and one security-event contract
+make the enforcement and evidence planes independently extensible.
+
+![One-page AEG architecture](AEG_ARCHITECTURE.svg)
+
+## Trust boundary and data flow
 
 ```mermaid
 flowchart LR
-    UI["React Web UI"] --> API["Fastify API"]
-    API --> Service["AgentService"]
-    Service --> Store["JSON store"]
-    Service --> Workspace["Agent workspace"]
-    Service --> Runner{"AgentRunner"}
-    Runner -->|Local POC| Container["Disposable Runtime container"]
-    Runner -->|ECS| Process["Codex child process"]
-    Container --> Ark["Volcengine Ark"]
-    Process --> Ark
+    Human[Human] --> UI[Playground]
+    Human --> SOC[Security Center]
+    UI --> API[Fastify API]
+
+    subgraph Trusted[Trusted control plane]
+        API --> Identity[Identity + Run Delegation]
+        Identity --> Service[AgentService / Run state]
+        Registry[Security Module Registry]
+        Service --> Stager[Workspace + Codex Home Stager]
+        Collector[Effect Collector] --> Policy[Deterministic Policy]
+        Outbox[External Outbox Parser] --> HttpPolicy[HTTP Policy]
+        HttpPolicy -->|allow| HttpExecutor[Trusted HTTP Executor]
+        HttpPolicy -->|review| Approval
+        HttpPolicy -->|deny| Rollback
+        Policy -->|allow| Committer[Trusted Committer]
+        Policy -->|review| Approval[Digest-bound Approval]
+        Approval -->|approve + revalidate| Committer
+        Policy -->|deny| Rollback[Rollback / discard]
+        Approval -->|deny / expire / mismatch| Rollback
+        Bus[Security Event Bus]
+        Ledger[HMAC-chained Security Ledger]
+    end
+
+    subgraph Untrusted[Untrusted execution domain]
+        Stage[(Disposable staging)] --> Runtime[Codex Runtime]
+        Runtime --> Trace[Self-reported trace]
+    end
+
+    Stager --> Stage
+    Runtime --> Collector
+    Runtime --> Outbox
+    Trace -. evidence only .-> Collector
+    Committer --> Workspace[(Real workspace)]
+    Committer --> Session[(Committed Codex Home)]
+    Registry --> Policy
+    Identity --> Bus
+    Collector --> Bus
+    Policy --> Bus
+    Approval --> Bus
+    Committer --> Bus
+    Rollback --> Bus
+    HttpExecutor --> Bus
+    Bus --> Ledger
+    Ledger --> SOC
+    HttpExecutor --> Target[(Allowlisted external service)]
+    Runtime -->|Open egress: Ark + Internet| Network[(Network)]
 ```
+
+The Runtime never receives the real workspace path or committed Codex Home.
+Runtime trace is untrusted evidence. Enforcement uses hashes and filesystem
+facts measured by the control plane. External requests are canonicalized from a
+reserved outbox; the trusted executor sends them only after policy and approval.
+
+## Run protocol
+
+```text
+queued
+  → running
+  → reviewing_effects
+      → committing → completed
+      → awaiting_approval → committing → completed
+      → awaiting_approval → rolling_back → rolled_back
+      → rolling_back → rolled_back
+```
+
+Every Run follows this protocol:
+
+1. Hash the real workspace and create Run-specific workspace and Codex Home
+   copies under `APP_DATA_DIR/security/staging`.
+2. Confirm that the staged baseline hash equals the real before-hash.
+3. Execute Codex against staged paths only.
+4. Hash both trees and create a canonical create/modify/delete Effect Manifest.
+5. Parse at most one `.aeg/external-effects.json` request and create a canonical
+   HTTP Effect containing the method, URL, header names, body hash and digest.
+6. Reject a Run that mixes ordinary file changes with an external request. This
+   avoids claiming atomicity across a filesystem and a remote service.
+7. Apply built-in policy and every active module contribution. Extensions may
+   tighten a decision but cannot relax an earlier decision. Any deny rolls back
+   the complete manifest; any review decision pauses it.
+8. Bind approval to the combined manifest digest, policy version, TTL, and real
+   before-state. Recalculate it immediately before applying effects.
+9. Reject links and unsafe path components, snapshot real state, apply files,
+   verify the final tree, and promote the staged Codex Home.
+10. For an external-only Run, remove the outbox, commit the session, then let the
+   trusted executor send the request with a deterministic idempotency key.
+11. Record the final real workspace hash. A rolled-back Run must have identical
+   before and after hashes.
 
 ## Components
 
-### Web UI
+| Component | Trust | Responsibility |
+| --- | --- | --- |
+| React UI | Presentation | Submit tasks, inspect Run history, review exact effects, verify ledger |
+| Security Center | Presentation | Query and continuously project correlated identity, Runtime, policy, Effect and evidence events |
+| Fastify API | Trusted boundary | Validate requests and expose lifecycle/approval/evidence APIs |
+| IdentityDelegation | Trusted | Provision Agent principals and derive scoped, expiring Run capabilities from the Human owner |
+| SecurityModuleRegistry | Trusted extension seam | Register modules, fingerprint policy versions, run most-restrictive policy contributions and event hooks |
+| SecurityEventBus | Trusted instrumentation | Correlate module events and fan them into the tamper-evident ledger |
+| AgentService | Trusted | Coordinate Run state, approval lifecycle, restart recovery and session commit |
+| EffectGateway | Trusted | Stage trees, measure effects, validate paths, snapshot, commit and restore |
+| ExternalEffectGateway | Trusted | Parse the outbox, enforce HTTP/SSRF/data rules, execute requests and capture receipts |
+| Policy engine | Trusted pure code | Default decision, hard deny, approval rules and most-restrictive precedence |
+| Codex Runtime | Untrusted | Reason, execute commands and modify disposable state |
+| Trace collector | Untrusted input | Parse Runtime events; compare file claims with measured effects |
+| Security ledger | Trusted evidence | Append HMAC-linked, redacted decisions and lifecycle events |
 
-Lists Agents, manages lifecycle actions, submits prompts, and polls asynchronous
-Runs. It never receives the Ark API key.
-
-### Fastify API
-
-Validates requests, protects remote demos with a shared bearer token, and
-serves the compiled Web UI. The token is not user identity or authorization.
-
-### AgentService
-
-Coordinates lifecycle state, persistence, workspaces, and Runs. One Agent can
-have only one active Run.
+## Persistent layout
 
 ```text
-ready -> busy -> ready
-  |       |
-  v       v
-stopped  error
+APP_DATA_DIR/
+  launchpad.json                 Human, Agent principal, Run capability, approval and message metadata
+  security/
+    staging/<run-id>/            Disposable workspace and Codex Home
+    snapshots/<run-id>/          Commit-time recovery copy
+    codex/<agent-id>/             Last committed Agent session state
+    ledger/events.jsonl          HMAC-linked security events
+    ledger/audit.key             Local POC audit key
+
+AGENT_WORKSPACE_ROOT/<agent-id>/  Real protected workspace
 ```
 
-Interrupted Runs become `cancelled` after a restart.
+## Failure behavior
 
-### Storage
+| Failure | Result |
+| --- | --- |
+| Policy deny | Complete staged manifest discarded |
+| Human denial or approval expiry | Complete staged manifest discarded |
+| Staged content replaced after review | Digest mismatch and rollback |
+| Real workspace changed concurrently | Before-state mismatch and rollback |
+| Symlink, hardlink or unsafe path | Trusted Committer rejects the Run |
+| Partial file application | Snapshot restores the real workspace |
+| Server restart during an active Run | Approval expires and orphan staging is removed |
+| Runtime trace disagrees with diff | `trace.mismatch` evidence event; policy still uses measured diff |
+| HTTP timeout or connection failure | Run is `failed`, outcome is `uncertain`, and blind retry is discouraged |
+| External request changed after review | Combined digest mismatch; request is not sent |
+| File and external effects mixed | Policy deny; no file or external effect is applied |
 
-```text
-data/launchpad.json       Agent, message, and Run metadata
-workspaces/AgentID/       Agent-created files
-workspaces/.deleted/      Archived deleted workspaces
-codex-home/               Codex configuration and sessions
-```
+## Security boundary
 
-`JsonStore` serializes writes and atomically replaces one JSON file. It supports
-one process only.
+Implemented guarantee: unauthorized persistent file changes and rejected Codex
+session state do not reach protected storage. External HTTP actions declared
+through the outbox are checked and sent only by the trusted executor.
 
-### Runtime providers
-
-- `CodexRunner` runs Codex inside the application container for ECS.
-- `ContainerCodexRunner` starts one disposable Docker, Colima, or Podman
-  container for every local turn.
-
-Both providers use argv-only process execution, bound output and time, resume
-the stored Codex thread, and escalate termination after a grace period.
-
-## Deployment profiles
-
-| Profile | Control plane | Agent execution |
-| --- | --- | --- |
-| Local POC | Host Node.js | Disposable local container |
-| ECS | Application container | Codex process in the same container |
-| Local development | Host Node.js | Host Codex process |
-
-## Extension seams
-
-| Track | Primary seam | Expected change |
-| --- | --- | --- |
-| Glass Box | `AgentRunner`, `AgentRun` | Emit and display correlated execution events. |
-| Bouncer | API routes, Agent ownership | Add identity and server-side authorization. |
-| Kill Switch | `AgentRunner` | Add threat-specific policy or a stronger sandbox. |
-
-The current container or ECS instance is the POC trust boundary. Ordinary
-containers are not hardened multi-tenant isolation.
+Open channels: universal Runtime egress interception, Ark key exposure inside
+the active Runtime, host administrator access, multi-tenant isolation, remote
+compensation and distributed transactions. P1 covers the declared HTTP action
+path and does not make a general confidentiality or data-loss-prevention claim.
+The local Human principal is an attribution model layered behind the optional
+shared access token; it is not production authentication.

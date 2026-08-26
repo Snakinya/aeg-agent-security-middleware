@@ -6,6 +6,9 @@ import type { AgentService } from "./agent-service.js";
 const service = {
   listAgents: () => [],
   systemInfo: async () => ({}),
+  identityInfo: () => ({ currentHuman: null, agents: [] }),
+  securityOverview: async () => ({ posture: "protected" }),
+  securityEvents: async () => [],
 } as unknown as AgentService;
 
 describe("HTTP boundary", () => {
@@ -43,6 +46,27 @@ describe("HTTP boundary", () => {
       payload: JSON.stringify({ name: "x".repeat(1_100_000) }),
     });
     expect(oversized.statusCode).toBe(413);
+    await app.close();
+  });
+
+  it("exposes the operator security projection through validated queries", async () => {
+    const app = await createApp(loadConfig({ NODE_ENV: "test" }), service);
+    const overview = await app.inject({ method: "GET", url: "/api/security/overview" });
+    expect(overview.statusCode).toBe(200);
+    expect(overview.json()).toMatchObject({ posture: "protected" });
+
+    const events = await app.inject({
+      method: "GET",
+      url: "/api/security/events?limit=20&moduleId=filesystem-effects",
+    });
+    expect(events.statusCode).toBe(200);
+    expect(events.json()).toEqual({ events: [] });
+
+    const invalid = await app.inject({
+      method: "GET",
+      url: "/api/security/events?limit=2000",
+    });
+    expect(invalid.statusCode).toBe(400);
     await app.close();
   });
 });

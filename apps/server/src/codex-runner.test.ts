@@ -5,8 +5,10 @@ describe("Codex runner protocol", () => {
   it("builds a new-session invocation", () => {
     const args = buildCodexArgs(
       {
+        runId: "run",
         agentId: "agent",
         workspacePath: "/tmp/workspace",
+        codexHomePath: "/tmp/codex-home",
         prompt: "build a calculator",
         threadId: null,
       },
@@ -27,8 +29,10 @@ describe("Codex runner protocol", () => {
   it("resumes a stored Codex thread", () => {
     const args = buildCodexArgs(
       {
+        runId: "run",
         agentId: "agent",
         workspacePath: "/tmp/workspace",
+        codexHomePath: "/tmp/codex-home",
         prompt: "add tests",
         threadId: "thread-123",
       },
@@ -47,6 +51,7 @@ describe("Codex runner protocol", () => {
         outputTokens?: number;
       } | null,
       errors: [] as string[],
+      trace: [],
     };
     parseCodexEventLine(
       JSON.stringify({ type: "thread.started", thread_id: "thread-123" }),
@@ -69,5 +74,36 @@ describe("Codex runner protocol", () => {
     expect(parsed.threadId).toBe("thread-123");
     expect(parsed.messages).toEqual(["Done."]);
     expect(parsed.usage).toEqual({ inputTokens: 10, outputTokens: 4 });
+  });
+
+  it("collects file-change trace resources as untrusted evidence", () => {
+    const parsed = {
+      messages: [] as string[],
+      threadId: null as string | null,
+      usage: null,
+      errors: [] as string[],
+      trace: [],
+    };
+    parseCodexEventLine(
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "file_change",
+          changes: [
+            { path: "/workspace/src/index.ts", kind: "update" },
+            { path: "/workspace/src/new.ts", kind: "add" },
+          ],
+        },
+      }),
+      parsed,
+    );
+    expect(parsed.trace).toEqual([
+      {
+        type: "file_change",
+        summary: "/workspace/src/index.ts, /workspace/src/new.ts",
+        resources: ["/workspace/src/index.ts", "/workspace/src/new.ts"],
+        exitCode: null,
+      },
+    ]);
   });
 });
