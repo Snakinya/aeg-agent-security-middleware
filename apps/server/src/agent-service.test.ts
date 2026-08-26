@@ -281,7 +281,7 @@ describe("Agent lifecycle", () => {
     });
   });
 
-  it("rejects linked staged files before trusted commit", async () => {
+  it("denies linked staged files at policy review and rolls the run back", async () => {
     const service = await makeService({
       run: async (request) => {
         await symlink("/etc/passwd", path.join(request.workspacePath, "linked.txt"));
@@ -296,7 +296,11 @@ describe("Agent lifecycle", () => {
     await expect(access(path.join(agent.workspacePath, "linked.txt"))).rejects.toMatchObject({
       code: "ENOENT",
     });
-    expect(service.getRun(run.id).securitySummary).toContain("rejected non-regular");
+    const stored = service.getRun(run.id);
+    expect(stored.securitySummary).toContain("Policy denied the manifest");
+    expect(stored.effects.find((effect) => effect.resource === "linked.txt")?.ruleId).toBe(
+      "deny-non-regular-file",
+    );
   });
 
   it("waits for approval before executing an external HTTP effect", async () => {

@@ -22,6 +22,32 @@ import type { EffectDecision, EffectPreview, FileEffect } from "./types.js";
 interface ScannedEntry {
   hash: string;
   size: number;
+  kind: "regular" | "symlink" | "special";
+}
+
+/**
+ * Ephemeral or tool-managed directories that are never part of the protected
+ * workspace state: they are excluded from scanning, policy review, and trusted
+ * commit. This keeps benign runs (npm install, builds) fast and prevents
+ * package-manager symlinks from failing the whole manifest, while `.git`
+ * internals stay untouchable because they are simply never copied back.
+ */
+const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".cache",
+  ".next",
+  ".turbo",
+  ".venv",
+  "__pycache__",
+  ".pnpm-store",
+]);
+
+export function isIgnoredResource(resource: string): boolean {
+  return resource.split("/").some((segment) => IGNORED_DIRECTORIES.has(segment));
 }
 
 export interface StagedRun {
@@ -107,6 +133,7 @@ export class EffectGateway {
       .filter((resource) => !ignored.has(resource))
       .sort();
     const effects: FileEffect[] = [];
+    const nonRegular = new Set<string>();
     for (const resource of resources) {
       const previous = before.get(resource);
       const next = after.get(resource);
@@ -116,6 +143,7 @@ export class EffectGateway {
         : !next
           ? "file.delete"
           : "file.modify";
+      if (next && next.kind !== "regular") nonRegular.add(resource);
       const base: FileEffect = {
         id: "",
         runId,
@@ -131,7 +159,23 @@ export class EffectGateway {
       base.id = createEffectId(runId, base);
       effects.push(base);
     }
-    return evaluateEffects(effects);
+    const evaluated = evaluateEffects(effects);
+    if (nonRegular.size === 0) return evaluated;
+    const adjusted = evaluated.effects.map((effect) =>
+      effect.type !== "file.delete" && nonRegular.has(effect.resource)
+        ? {
+            ...effect,
+            decision: "deny" as const,
+            ruleId: "deny-non-regular-file",
+            reason: "Only regular files can be committed to the protected workspace",
+          }
+        : effect,
+    );
+    return {
+      effects: adjusted,
+      decision: "deny",
+      manifestDigest: evaluated.manifestDigest,
+    };
   }
 
   async workspaceDigest(workspacePath: string): Promise<string> {
@@ -272,6 +316,7 @@ export class EffectGateway {
           : child.name;
         const absolute = path.join(directory, child.name);
         if (child.isDirectory()) {
+          if (IGNORED_DIRECTORIES.has(child.name)) continue;
           await walk(absolute, relative);
           continue;
         }
@@ -280,17 +325,20 @@ export class EffectGateway {
           entries.set(relative, {
             hash: createHash("sha256").update(await readFile(absolute)).digest("hex"),
             size: stats.size,
+            kind: "regular",
           });
         } else if (stats.isSymbolicLink()) {
           const target = await readlink(absolute);
           entries.set(relative, {
             hash: createHash("sha256").update("symlink:" + target).digest("hex"),
             size: Buffer.byteLength(target),
+            kind: "symlink",
           });
         } else {
           entries.set(relative, {
             hash: createHash("sha256").update("special:" + stats.mode).digest("hex"),
             size: stats.size,
+            kind: "special",
           });
         }
       }

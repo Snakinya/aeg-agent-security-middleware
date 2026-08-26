@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AppConfig } from "./config.js";
 import { isArkConfigured } from "./config.js";
-import { EffectGateway, type StagedRun } from "./effect-gateway.js";
+import { EffectGateway, isIgnoredResource, type StagedRun } from "./effect-gateway.js";
 import {
   combineDecision,
   computeRunManifestDigest,
@@ -704,7 +704,9 @@ export class AgentService {
           .map((resource) => this.normalizeTraceResource(resource, stagingWorkspacePath))
           .filter(
             (resource): resource is string =>
-              resource !== null && resource !== EXTERNAL_EFFECT_OUTBOX,
+              resource !== null &&
+              resource !== EXTERNAL_EFFECT_OUTBOX &&
+              !isIgnoredResource(resource),
           ),
       );
       const measuredResources = new Set(manifest.fileEffects.map((effect) => effect.resource));
