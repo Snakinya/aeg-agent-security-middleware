@@ -3578,6 +3578,23 @@ textarea:focus {
    Later rules intentionally override the base sheet above.
    ============================================================ */
 
+/* --- Playground layout: rows adapt to the optional run-history strip --- */
+.playground {
+  display: flex;
+  flex-direction: column;
+}
+
+.playground-topbar,
+.run-history,
+.composer {
+  flex: none;
+}
+
+.messages {
+  flex: 1;
+  min-height: 0;
+}
+
 /* --- Interaction states --- */
 button {
   transition: background-color 140ms ease, border-color 140ms ease,
