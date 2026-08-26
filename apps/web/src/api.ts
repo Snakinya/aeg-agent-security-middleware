@@ -87,8 +87,10 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
-  approvals: (status = "pending") =>
-    request<{ approvals: Approval[] }>("/api/approvals?status=" + status),
+  approvals: (status?: "pending" | "approved" | "denied" | "expired") =>
+    request<{ approvals: Approval[] }>(
+      "/api/approvals" + (status ? "?status=" + status : ""),
+    ),
   approval: (approvalId: string) =>
     request<{
       approval: Approval;

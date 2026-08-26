@@ -91,10 +91,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState<boolean | null>(null);
   const [authInput, setAuthInput] = useState("");
-  const [ledgerResult, setLedgerResult] = useState<string | null>(null);
   const [effectPreviews, setEffectPreviews] = useState<EffectPreview[]>([]);
   const [approvalWorkspaceHash, setApprovalWorkspaceHash] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"playground" | "security">("playground");
+  const [securityFocus, setSecurityFocus] = useState<{
+    agentId: string;
+    runId: string;
+  } | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
   const activeRunIdRef = useRef<string | null>(null);
@@ -365,18 +368,9 @@ export default function App() {
     }
   };
 
-  const verifyLedger = async () => {
-    setLedgerResult("verifying");
-    try {
-      const result = await api.verifyLedger();
-      setLedgerResult(
-        result.valid
-          ? `verified · ${result.events} events · ${result.head.slice(0, 12)}…`
-          : `integrity failure at event ${result.brokenAt ?? "unknown"}`,
-      );
-    } catch (reason) {
-      setLedgerResult(reason instanceof Error ? reason.message : String(reason));
-    }
+  const openSecurityForRun = (run: AgentRun) => {
+    setSecurityFocus({ agentId: run.agentId, runId: run.id });
+    setActiveView("security");
   };
 
   const unlock = async (event: React.FormEvent) => {
@@ -475,7 +469,10 @@ export default function App() {
           </button>
           <button
             className={activeView === "security" ? "active" : ""}
-            onClick={() => setActiveView("security")}
+            onClick={() => {
+              setSecurityFocus(null);
+              setActiveView("security");
+            }}
           >
             <span>◈</span>
             Security Center
@@ -553,11 +550,11 @@ export default function App() {
 
         {activeView === "security" ? (
           <SecurityCenter
-            initialAgentId={selectedId}
+            initialAgentId={securityFocus?.agentId ?? selectedId}
+            initialRunId={securityFocus?.runId ?? null}
             onOpenRun={(agentId, run) => {
               setSelectedId(agentId);
               setActiveRun(run);
-              setLedgerResult(null);
               setActiveView("playground");
             }}
           />
@@ -684,10 +681,7 @@ export default function App() {
                         key={run.id}
                         className={"run-chip " + (activeRun?.id === run.id ? "selected" : "")}
                         aria-pressed={activeRun?.id === run.id}
-                        onClick={() => {
-                          setActiveRun(run);
-                          setLedgerResult(null);
-                        }}
+                        onClick={() => setActiveRun(run)}
                       >
                         <span className={"run-status-dot run-status-" + run.status} />
                         <span>
@@ -875,113 +869,45 @@ export default function App() {
                     <span>{activeRun.error}</span>
                   </article>
                 )}
-                {activeRun?.status === "rolled_back" && (
-                  <article className="run-error security-rollback">
-                    <strong>Effects rolled back</strong>
-                    <span>{activeRun.securitySummary}</span>
-                  </article>
-                )}
                 {activeRun &&
-                  (activeRun.effects.length > 0 || activeRun.externalEffects.length > 0) &&
-                  activeRun.status !== "awaiting_approval" && (
-                  <article className="evidence-card">
-                    <div className="approval-heading">
-                      <div>
-                        <span className="eyebrow">Run evidence</span>
-                        <strong>{activeRun.securitySummary ?? "Effect review"}</strong>
-                      </div>
-                      <button className="ledger-button" onClick={() => void verifyLedger()}>
-                        Verify ledger
-                      </button>
-                    </div>
-                    <div className="effect-list">
-                      {activeRun.effects.map((effect) => (
-                        <div className="effect-row" key={effect.id}>
-                          <span className={"effect-kind effect-" + effect.type.split(".")[1]}>
-                            {effect.type.split(".")[1]}
-                          </span>
-                          <code>{effect.resource}</code>
-                          <span className={"decision-badge decision-" + effect.decision}>
-                            {effect.decision.replace("require_", "")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {activeRun.externalEffects.length > 0 && (
-                      <div className="external-effect-list">
-                        {activeRun.externalEffects.map((effect) => (
-                          <div className="external-effect" key={effect.id}>
-                            <div className="effect-row">
-                              <span className="effect-kind effect-http">{effect.method}</span>
-                              <code>{effect.url}</code>
-                              <span className={"external-status external-status-" + effect.status}>
-                                {effect.status}
-                              </span>
-                            </div>
-                            <p>{effect.reason}</p>
-                            {effect.receipt && (
-                              <div className="external-receipt">
-                                <strong>HTTP {effect.receipt.statusCode}</strong>
-                                <span>{effect.receipt.responseBytes} response bytes</span>
-                                <code>{effect.receipt.responseHash.slice(0, 16)}…</code>
-                                {effect.receipt.bodyPreview && (
-                                  <pre>{effect.receipt.bodyPreview}</pre>
-                                )}
-                              </div>
-                            )}
-                            {effect.error && <div className="external-error">{effect.error}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="evidence-footer">
-                      <code title={activeRun.manifestDigest ?? undefined}>
-                        {activeRun.manifestDigest?.slice(0, 20)}…
-                      </code>
-                      {activeRun.manifestDigest && (
-                        <CopyButton value={activeRun.manifestDigest} label="manifest digest" />
-                      )}
-                      <span>{activeRun.trace.length} trace events</span>
-                      {ledgerResult && <span>{ledgerResult}</span>}
-                    </div>
-                    {activeRun.workspaceHashBefore && activeRun.workspaceHashAfter && (
-                      <div
-                        className={
-                          "state-proof " +
-                          (activeRun.workspaceHashBefore === activeRun.workspaceHashAfter
-                            ? "state-proof-stable"
-                            : "state-proof-changed")
-                        }
-                      >
-                        <div>
-                          <span>Workspace SHA-256</span>
-                          <code>{activeRun.workspaceHashBefore.slice(0, 12)}</code>
-                          <b>→</b>
-                          <code>{activeRun.workspaceHashAfter.slice(0, 12)}</code>
-                        </div>
-                        <strong>
-                          {activeRun.status === "rolled_back"
-                            ? activeRun.workspaceHashBefore === activeRun.workspaceHashAfter
+                  ["completed", "rolled_back", "failed", "cancelled"].includes(activeRun.status) &&
+                  (activeRun.effects.length > 0 ||
+                    activeRun.externalEffects.length > 0 ||
+                    activeRun.securitySummary) && (
+                  <aside
+                    className={
+                      "security-note " +
+                      (activeRun.status === "rolled_back"
+                        ? "security-note-blocked"
+                        : activeRun.status === "completed"
+                          ? "security-note-ok"
+                          : "security-note-muted")
+                    }
+                  >
+                    <span className="security-note-icon">
+                      {activeRun.status === "rolled_back" ? "⛨" : activeRun.status === "completed" ? "✓" : "◌"}
+                    </span>
+                    <div className="security-note-copy">
+                      <strong>
+                        {activeRun.status === "rolled_back"
+                          ? "Blocked by AEG — workspace " +
+                            (activeRun.workspaceHashBefore === activeRun.workspaceHashAfter
                               ? "restored exactly"
-                              : "recovery mismatch"
-                            : activeRun.workspaceHashBefore === activeRun.workspaceHashAfter
-                              ? "workspace unchanged"
-                              : "committed change"}
-                        </strong>
-                      </div>
-                    )}
-                    {activeRun.trace.length > 0 && (
-                      <div className="trace-list">
-                        {activeRun.trace.map((event) => (
-                          <div className="trace-row" key={event.id}>
-                            <span>{event.type.replaceAll("_", " ")}</span>
-                            <code>{event.summary}</code>
-                            {event.exitCode !== null && <b>exit {event.exitCode}</b>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </article>
+                              : "rolled back")
+                          : activeRun.status === "completed"
+                            ? "AEG committed " +
+                              activeRun.effects.length +
+                              " effect" +
+                              (activeRun.effects.length === 1 ? "" : "s") +
+                              (activeRun.externalEffects.length > 0
+                                ? " · " + activeRun.externalEffects.length + " external action"
+                                : "")
+                            : "Staging discarded — no protected state changed"}
+                      </strong>
+                      <small>{activeRun.securitySummary ?? "Reviewed by deterministic policy"}</small>
+                    </div>
+                    <button onClick={() => openSecurityForRun(activeRun)}>Evidence →</button>
+                  </aside>
                 )}
               </div>
 
