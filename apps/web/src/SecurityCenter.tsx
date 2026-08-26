@@ -73,6 +73,15 @@ function formatTimestamp(value: string | null | undefined): string {
   }).format(new Date(value));
 }
 
+function relativeTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const delta = Date.now() - Date.parse(value);
+  if (delta < 60_000) return Math.max(1, Math.round(delta / 1_000)) + "s ago";
+  if (delta < 3_600_000) return Math.round(delta / 60_000) + "m ago";
+  if (delta < 86_400_000) return Math.round(delta / 3_600_000) + "h ago";
+  return formatTimestamp(value);
+}
+
 function formatDuration(run: AgentRun): string {
   if (!run.startedAt) return "Not started";
   const end = run.completedAt ? Date.parse(run.completedAt) : Date.now();
@@ -439,9 +448,20 @@ export function SecurityCenter({ initialAgentId, onOpenRun }: SecurityCenterProp
                 </div>
               </>
             ) : selectedAgent ? (
-              <div className="security-empty"><h2>No Run selected</h2><p>This Agent has no recorded security execution yet.</p></div>
+              <div className="security-empty">
+                <span className="security-empty-glyph">◈</span>
+                <h2>No security evidence yet</h2>
+                <p>
+                  Send <strong>{selectedAgent.name}</strong> a task in the Playground. Every run
+                  will appear here with its staged effects, policy decisions and ledger events.
+                </p>
+              </div>
             ) : (
-              <div className="security-empty"><h2>No Agent selected</h2><p>Select an Agent from the navigation to inspect its Runs.</p></div>
+              <div className="security-empty">
+                <span className="security-empty-glyph">◈</span>
+                <h2>No Agent selected</h2>
+                <p>Select an Agent from the navigation to inspect its Runs and decisions.</p>
+              </div>
             )}
 
             {(platformSelected || selectedRun) && (
@@ -492,7 +512,7 @@ export function SecurityCenter({ initialAgentId, onOpenRun }: SecurityCenterProp
                   ) : visibleEvents.map((event) => (
                     <button className={"security-event-row " + (selectedEvent?.sequence === event.sequence ? "selected" : "")} key={event.sequence} onClick={() => setSelectedEvent(event)}>
                       <span className={"event-severity event-severity-" + eventTone(event)} />
-                      <time>{formatTimestamp(event.createdAt)}</time>
+                      <time title={formatTimestamp(event.createdAt)}>{relativeTime(event.createdAt)}</time>
                       <span className="event-stage">{event.stage ?? "verify"}</span>
                       <div><strong>{eventLabel(event)}</strong><small>{event.reason ?? "Security event recorded"}</small></div>
                       <span className={"event-decision event-decision-" + eventTone(event)}>{decisionLabel(event.decision)}</span>

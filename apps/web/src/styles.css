@@ -94,7 +94,7 @@
   display: block;
   margin: 0 0 5px 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -109,7 +109,7 @@
   border-radius: 9px;
   background: #20211f;
   color: #f4f2e9;
-  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -119,7 +119,7 @@
   color: var(--muted);
   border-radius: 9px;
   background: rgba(35, 32, 57, 0.04);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .trace-list {
@@ -135,7 +135,7 @@
   grid-template-columns: 120px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .trace-row > span {
@@ -181,7 +181,7 @@
 .decision-badge {
   padding: 4px 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -226,7 +226,7 @@
 .external-effect > p {
   margin: 8px 2px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .external-effect > pre,
@@ -238,7 +238,7 @@
   border-radius: 9px;
   color: #f4f2e9;
   background: #20211f;
-  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -251,7 +251,7 @@
   gap: 9px;
   margin-top: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .external-receipt pre {
@@ -261,7 +261,7 @@
 .external-status {
   padding: 4px 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -287,7 +287,7 @@
   margin-top: 9px;
   padding: 8px;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .approval-actions {
@@ -301,7 +301,7 @@
   gap: 12px;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .ledger-button {
@@ -325,7 +325,7 @@
   margin-top: 14px;
   padding: 10px 12px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .state-proof > div {
@@ -403,7 +403,7 @@
   display: flex;
   gap: 5px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -411,7 +411,7 @@
 .run-chip small {
   grid-column: 2;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -498,7 +498,7 @@ body {
   display: grid;
   gap: 8px;
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -568,7 +568,7 @@ button {
 
 .brand span {
   color: #96968f;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 3px;
 }
 
@@ -578,7 +578,7 @@ button {
   min-height: 38px;
   padding: 0 15px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: 160ms ease;
   display: inline-flex;
@@ -653,7 +653,7 @@ button {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
@@ -682,7 +682,7 @@ button {
   justify-content: space-between;
   padding: 25px 7px 10px;
   color: #85857e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -727,7 +727,7 @@ button {
   border-radius: 10px;
   color: #dcd4ff;
   background: #4a415f;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -744,12 +744,12 @@ button {
 }
 
 .agent-card-copy strong {
-  font-size: 12px;
+  font-size: 13px;
   color: #edebe4;
 }
 
 .agent-card-copy span {
-  font-size: 10px;
+  font-size: 12px;
   color: #8e8e87;
   margin-top: 3px;
 }
@@ -780,7 +780,7 @@ button {
 
 .empty-sidebar {
   color: #777770;
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
   border: 1px dashed #42423d;
   border-radius: 12px;
@@ -807,20 +807,20 @@ button {
 }
 
 .runtime-card strong {
-  font-size: 11px;
+  font-size: 13px;
   margin: 6px 0 4px;
 }
 
 .runtime-card > span:last-child {
   color: #85857e;
-  font-size: 9px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .eyebrow {
   color: #898982;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -843,7 +843,7 @@ button {
   align-items: center;
   border-radius: 10px;
   padding: 10px 13px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .config-banner {
@@ -871,7 +871,7 @@ button {
 }
 
 .config-banner p {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 2px;
   opacity: 0.78;
 }
@@ -923,7 +923,7 @@ button {
 .agent-header p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .protection-strip {
@@ -939,7 +939,7 @@ button {
   border-top: 1px solid rgba(51, 144, 109, 0.2);
   border-bottom: 1px solid rgba(51, 144, 109, 0.2);
   background: rgba(229, 247, 237, 0.55);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .protection-strip > div,
@@ -972,7 +972,7 @@ button {
   color: #286c52;
   border: 0;
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -1017,7 +1017,7 @@ button {
   align-items: center;
   gap: 8px;
   color: #7d8582;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1032,7 +1032,7 @@ button {
 .security-header p {
   margin: 0;
   color: var(--security-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .security-live-dot {
@@ -1055,7 +1055,7 @@ button {
 
 .security-posture span {
   grid-column: 1 / -1;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1068,14 +1068,14 @@ button {
 
 .security-posture small {
   color: var(--security-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .security-inline-error {
   padding: 9px 0;
   color: #f09b91;
   border-bottom: 1px solid rgba(224, 100, 90, 0.2);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .security-metrics {
@@ -1108,7 +1108,7 @@ button {
   margin-top: 3px;
   overflow: hidden;
   color: var(--security-muted);
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1141,13 +1141,13 @@ button {
 }
 
 .security-module strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .security-module small {
   margin-top: 3px;
   color: #747a78;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .module-state {
@@ -1190,7 +1190,7 @@ button {
 }
 
 .trace-toolbar strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .trace-filters {
@@ -1207,7 +1207,7 @@ button {
   border-radius: 7px;
   outline: none;
   background: #202222;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .trace-filters input {
@@ -1236,7 +1236,7 @@ button {
 .trace-time-axis {
   margin-bottom: 7px;
   color: #656a68;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .trace-time-axis > div {
@@ -1257,7 +1257,7 @@ button {
 
 .trace-lane-label {
   color: #777d7a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .trace-lane-grid {
@@ -1316,7 +1316,7 @@ button {
   color: #aeb3b0;
   border-bottom: 1px solid var(--security-line);
   background: rgba(26, 27, 27, 0.96);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1325,7 +1325,7 @@ button {
 
 .stream-heading small {
   color: #666c69;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -1358,7 +1358,7 @@ button {
 .security-event-row time,
 .event-module {
   color: #777d7a;
-  font: 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .event-module {
@@ -1380,14 +1380,14 @@ button {
 }
 
 .security-event-row strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
 .security-event-row small {
   margin-top: 4px;
   color: #777d7a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .event-severity {
@@ -1407,7 +1407,7 @@ button {
   border-radius: 5px;
   color: #999f9c;
   background: #262929;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1437,7 +1437,7 @@ button {
 
 .inspector-heading small {
   color: #6e7471;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -1450,7 +1450,7 @@ button {
 .inspector-reason {
   margin: 14px 0;
   color: #a3a9a6;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -1469,7 +1469,7 @@ button {
 
 .inspector-facts dt {
   color: #666c69;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -1477,7 +1477,7 @@ button {
   margin: 0;
   overflow: hidden;
   color: #bdc2bf;
-  font: 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1488,7 +1488,7 @@ button {
 
 .inspector-block > span {
   color: #666c69;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1498,7 +1498,7 @@ button {
 .inspector-block pre {
   margin: 7px 0 0;
   color: #aab0ad;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -1520,7 +1520,7 @@ button {
   justify-content: space-between;
   color: #686e6b;
   border-top: 1px solid var(--security-line);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .ledger-ok { color: #68c69f; }
@@ -1529,7 +1529,7 @@ button {
 .stream-empty {
   padding: 28px 16px;
   color: #6d7370;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -1542,7 +1542,7 @@ button {
   align-items: center;
   gap: 20px;
   color: #767c79;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-boundary span,
@@ -1558,7 +1558,7 @@ button {
 
 .security-boundary strong {
   color: #a7aca9;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .security-boundary p {
@@ -1594,7 +1594,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 4px 9px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -1669,7 +1669,7 @@ button {
 label {
   display: block;
   color: #575851;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1716,7 +1716,7 @@ textarea:focus {
 }
 
 .panel-footer code {
-  font-size: 9px;
+  font-size: 11px;
   color: #8a8a83;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1748,7 +1748,7 @@ textarea:focus {
 
 .session-info {
   color: #777870;
-  font-size: 9px;
+  font-size: 11px;
   border: 1px solid #e0ded6;
   border-radius: 999px;
   padding: 5px 9px;
@@ -1838,7 +1838,7 @@ textarea:focus {
 .welcome > p {
   max-width: 470px;
   color: #81827b;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
   margin: 8px 0 20px;
 }
@@ -1858,7 +1858,7 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.72);
   text-align: left;
   color: #65665f;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   cursor: pointer;
   transition: 150ms ease;
@@ -1889,19 +1889,19 @@ textarea:focus {
 }
 
 .message-meta strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .message-meta span {
   color: #96968f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .message-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: #40413d;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
 }
 
@@ -1934,7 +1934,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: 13px;
   color: #6f6f69;
 }
 
@@ -1956,7 +1956,7 @@ textarea:focus {
   background: #fbefed;
   padding: 10px 12px;
   color: #9e4545;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .composer {
@@ -1975,7 +1975,7 @@ textarea:focus {
   margin: 0;
   padding: 7px 4px;
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .composer-footer {
@@ -1986,7 +1986,7 @@ textarea:focus {
 
 .composer-footer > span {
   color: #999992;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .send-button {
@@ -2037,7 +2037,7 @@ textarea:focus {
 
 .no-agent p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   margin: 0 0 22px;
 }
 
@@ -2069,7 +2069,7 @@ textarea:focus {
 .modal-heading p {
   color: var(--muted);
   margin: 0 0 20px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .modal > label {
@@ -2395,7 +2395,7 @@ textarea:focus {
   justify-content: center;
   gap: 10px;
   color: var(--security-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .security-header {
@@ -2418,7 +2418,7 @@ textarea:focus {
 .security-header p {
   margin: 6px 0 0;
   color: var(--security-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .security-header-actions {
@@ -2455,12 +2455,12 @@ textarea:focus {
 }
 
 .security-posture strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .security-posture small {
   color: var(--security-muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-posture-degraded {
@@ -2490,7 +2490,7 @@ textarea:focus {
   border: 1px solid var(--security-line);
   border-radius: 9px;
   background: var(--security-paper);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: background 140ms ease, transform 140ms ease;
@@ -2517,7 +2517,7 @@ textarea:focus {
   border: 1px solid #edc4c0;
   border-radius: 9px;
   background: #fae8e6;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .security-tabs {
@@ -2535,7 +2535,7 @@ textarea:focus {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -2552,7 +2552,7 @@ textarea:focus {
 .security-tabs > span {
   margin: 0 0 18px auto;
   color: #92938c;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-workbench {
@@ -2582,7 +2582,7 @@ textarea:focus {
   justify-content: space-between;
   color: #7b7c75;
   border-bottom: 1px solid var(--security-line);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2652,7 +2652,7 @@ textarea:focus {
 .security-agent-group > button strong,
 .module-index > button strong {
   color: #343531;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .platform-scope small,
@@ -2660,14 +2660,14 @@ textarea:focus {
 .module-index > button small {
   margin-top: 3px;
   color: #85867f;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .platform-scope > b,
 .security-agent-group > button > b,
 .module-index > button > b {
   color: #8b8c85;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .platform-mark,
@@ -2679,7 +2679,7 @@ textarea:focus {
   color: #6559a5;
   border-radius: 9px;
   background: #e2def4;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2702,7 +2702,7 @@ textarea:focus {
 .security-session-tree > p {
   margin: 10px 7px;
   color: #8a8b84;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-session-tree section + section {
@@ -2717,7 +2717,7 @@ textarea:focus {
   justify-content: space-between;
   gap: 8px;
   color: #83847d;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -2726,7 +2726,7 @@ textarea:focus {
   min-width: 0;
   overflow: hidden;
   color: #777870;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   text-transform: none;
   white-space: nowrap;
@@ -2763,14 +2763,14 @@ textarea:focus {
 }
 
 .security-session-tree button strong {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-session-tree button small {
   margin-top: 3px;
   overflow: hidden;
   color: #8a8b84;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2827,7 +2827,7 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 6px;
   color: #93948d;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .security-breadcrumbs b {
@@ -2855,7 +2855,7 @@ textarea:focus {
 .run-heading p {
   margin: 0;
   color: #85867f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .run-heading-actions {
@@ -2873,7 +2873,7 @@ textarea:focus {
   border-radius: 7px;
   color: #676861;
   background: #ecebe5;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   white-space: nowrap;
@@ -2918,7 +2918,7 @@ textarea:focus {
 
 .run-summary span {
   color: #8c8d86;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .run-summary strong {
@@ -2951,14 +2951,14 @@ textarea:focus {
 .run-context span {
   flex: 0 0 auto;
   color: #93948d;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .run-context code {
   min-width: 0;
   overflow: hidden;
   color: #5f605a;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2983,20 +2983,20 @@ textarea:focus {
 }
 
 .trace-map-heading strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .trace-map-heading > div:first-child > span {
   margin-top: 3px;
   color: #91928b;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .trace-legend {
   display: flex;
   gap: 10px;
   color: #878881;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .trace-legend span::before {
@@ -3023,7 +3023,7 @@ textarea:focus {
 
 .trace-map-lane > span {
   color: #7f8079;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -3044,7 +3044,7 @@ textarea:focus {
   border: 0;
   border-radius: 4px;
   background: #898a84;
-  font-size: 7px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
@@ -3064,7 +3064,7 @@ textarea:focus {
 
 .trace-lane-empty {
   color: #bbbcb5;
-  font-size: 7px;
+  font-size: 11px;
 }
 
 .security-event-toolbar {
@@ -3081,7 +3081,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-event-toolbar > div span {
@@ -3097,7 +3097,7 @@ textarea:focus {
   border-radius: 7px;
   outline: none;
   background: white;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .security-event-toolbar select:focus,
@@ -3145,7 +3145,7 @@ textarea:focus {
 .security-event-row time,
 .event-stage {
   color: #898a83;
-  font: 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .event-stage {
@@ -3166,13 +3166,13 @@ textarea:focus {
 
 .security-event-row strong {
   color: #3e3f3a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .security-event-row small {
   margin-top: 3px;
   color: #8b8c85;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .event-decision {
@@ -3180,7 +3180,7 @@ textarea:focus {
   border-radius: 5px;
   color: #74756e;
   background: #ecebe5;
-  font-size: 7px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -3212,20 +3212,20 @@ textarea:focus {
 
 .inspector-heading small {
   color: #90918a;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
 .inspector-heading h2 {
   margin: 3px 0 0;
   color: #343531;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .inspector-reason {
   margin: 14px 0;
   color: #6f706a;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -3244,7 +3244,7 @@ textarea:focus {
 
 .inspector-facts dt {
   color: #92938c;
-  font-size: 7px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -3252,7 +3252,7 @@ textarea:focus {
   margin: 0;
   overflow: hidden;
   color: #555650;
-  font: 8px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3263,7 +3263,7 @@ textarea:focus {
 
 .inspector-block > span {
   color: #8f9089;
-  font-size: 7px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3277,7 +3277,7 @@ textarea:focus {
   color: #dcded9;
   border-radius: 8px;
   background: #2b2c29;
-  font: 8px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -3289,7 +3289,7 @@ textarea:focus {
   justify-content: space-between;
   color: #898a83;
   border-top: 1px solid var(--security-line);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .ledger-ok { color: #347a59; }
@@ -3314,12 +3314,12 @@ textarea:focus {
 .security-empty h2 {
   margin: 0;
   color: #555650;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .security-empty p {
   margin: 6px 0 0;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .module-workbench {
@@ -3364,7 +3364,7 @@ textarea:focus {
 
 .security-overline {
   color: #8b8c85;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3381,7 +3381,7 @@ textarea:focus {
   max-width: 620px;
   margin: 0;
   color: #777870;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -3399,13 +3399,13 @@ textarea:focus {
 
 .module-facts dt {
   color: #8a8b84;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .module-facts dd {
   margin: 0;
   color: #4f504a;
-  font: 9px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .module-capabilities,
@@ -3417,7 +3417,7 @@ textarea:focus {
 .module-contract h3 {
   margin: 0 0 10px;
   color: #444540;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .module-capabilities div {
@@ -3427,14 +3427,14 @@ textarea:focus {
   color: #5e536f;
   border-radius: 7px;
   background: #eeebf8;
-  font: 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .module-contract p {
   max-width: 680px;
   margin: 0;
   color: #75766f;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -3549,7 +3549,7 @@ textarea:focus {
 
   .security-event-row time::after {
     content: "event";
-    font-size: 8px;
+    font-size: 11px;
   }
 
   .event-stage {
@@ -3570,5 +3570,382 @@ textarea:focus {
   .security-inspector,
   .security-live-dot {
     animation: none;
+  }
+}
+
+/* ============================================================
+   Design refinement layer
+   Later rules intentionally override the base sheet above.
+   ============================================================ */
+
+/* --- Interaction states --- */
+button {
+  transition: background-color 140ms ease, border-color 140ms ease,
+    box-shadow 140ms ease, transform 140ms ease, color 140ms ease;
+}
+
+:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+/* --- Conversation typography --- */
+.message-body {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.markdown-body {
+  white-space: normal;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p {
+  margin: 0 0 10px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 18px 0 8px;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.markdown-body h1 { font-size: 19px; }
+.markdown-body h2 { font-size: 17px; }
+.markdown-body h3 { font-size: 15px; }
+.markdown-body h4 { font-size: 14px; }
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.markdown-body li {
+  margin: 3px 0;
+}
+
+.markdown-body li > p {
+  margin: 0;
+}
+
+.markdown-body code {
+  padding: 1px 5px;
+  border: 1px solid #e6e3da;
+  border-radius: 5px;
+  background: #f2f0e9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+}
+
+.markdown-body pre {
+  margin: 0 0 12px;
+  padding: 13px 15px;
+  overflow-x: auto;
+  color: #e9e7e0;
+  border-radius: 11px;
+  background: #26261f;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.markdown-body table {
+  margin: 0 0 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: #f5f4ef;
+}
+
+.markdown-body blockquote {
+  margin: 0 0 10px;
+  padding: 2px 14px;
+  border-left: 3px solid #cdc4f2;
+  color: var(--muted);
+}
+
+.markdown-body a {
+  color: var(--purple-dark);
+}
+
+.markdown-body hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* --- Copy affordance --- */
+.copy-button {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  color: var(--purple-dark);
+  border-color: #cdc4f2;
+  background: var(--purple-soft);
+}
+
+.copy-button.copied {
+  color: var(--green);
+  border-color: #bfdccd;
+  background: #eef7f2;
+}
+
+.digest-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.digest-row .digest {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.panel-footer-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.panel-footer-path code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Composer --- */
+.composer {
+  padding: 14px 22px 16px;
+  border-top: 1px solid #e5e3dc;
+  background: rgba(251, 250, 247, 0.96);
+}
+
+.composer textarea {
+  width: 100%;
+  padding: 12px 14px;
+  resize: none;
+  color: var(--ink);
+  border: 1px solid #dcdad2;
+  border-radius: 13px;
+  background: white;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  box-shadow: 0 1px 2px rgba(39, 38, 33, 0.05);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(105, 84, 217, 0.14);
+}
+
+.composer textarea::placeholder {
+  color: #a3a49b;
+}
+
+.composer.composer-locked textarea,
+.composer textarea:disabled {
+  color: var(--muted);
+  background: #f6f5f0;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: #9b9c93;
+  font-size: 12px;
+}
+
+.composer-lock-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.send-button {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  background: var(--purple);
+  font-size: 17px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(105, 84, 217, 0.3);
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--purple-dark);
+  transform: translateY(-1px);
+}
+
+.send-button:disabled {
+  color: white;
+  background: #d5d3cb;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* --- Welcome and prompt suggestions --- */
+.welcome > p {
+  max-width: 520px;
+  font-size: 14px;
+}
+
+.prompt-grid button {
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.prompt-grid button:hover {
+  color: var(--ink);
+  border-color: #cdc4f2;
+  background: #faf9ff;
+  box-shadow: 0 10px 22px rgba(70, 55, 150, 0.1);
+  transform: translateY(-2px);
+}
+
+.run-chip {
+  cursor: pointer;
+}
+
+.run-chip:hover {
+  border-color: #cdc4f2;
+}
+
+/* --- Security Center empty states --- */
+.security-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.security-empty.compact {
+  padding: 28px 16px;
+}
+
+.security-empty-glyph {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  color: #8f7af0;
+  border: 1px solid #ded8f6;
+  border-radius: 16px;
+  background: #f6f4fe;
+  font-size: 22px;
+}
+
+.security-empty h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.security-empty p {
+  max-width: 460px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* --- Inspector evidence: match the light theme --- */
+.inspector-block pre {
+  color: #45463f;
+  border: 1px solid #e3e1d8;
+  background: #f7f6f1;
+}
+
+/* --- Responsive layout --- */
+@media (max-width: 1320px) {
+  .security-workbench {
+    grid-template-columns: 224px minmax(0, 1fr);
+  }
+
+  .security-inspector {
+    grid-column: 1 / -1;
+    max-height: 380px;
+    border-left: 0;
+    border-top: 1px solid var(--security-line);
+  }
+}
+
+@media (max-width: 980px) {
+  .security-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .security-scope {
+    max-height: 280px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--security-line);
+  }
+
+  .module-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .module-index {
+    border-right: 0;
+    border-bottom: 1px solid var(--security-line);
   }
 }

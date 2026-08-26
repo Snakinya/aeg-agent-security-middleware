@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api, ApiError, setAuthToken } from "./api";
 import { SecurityCenter } from "./SecurityCenter";
 import type { Agent, AgentRun, EffectPreview, Message, SystemInfo } from "./types";
@@ -13,6 +15,7 @@ const pollingStatuses: AgentRun["status"][] = [
   "queued",
   "running",
   "reviewing_effects",
+  "awaiting_approval",
   "committing",
   "rolling_back",
 ];
@@ -44,6 +47,35 @@ function Spinner() {
   return <span className="spinner" aria-label="Loading" />;
 }
 
+function CopyButton({ value, label }: { value: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className={"copy-button" + (copied ? " copied" : "")}
+      aria-label={"Copy " + (label ?? "value")}
+      title={copied ? "Copied" : "Copy " + (label ?? "to clipboard")}
+      onClick={(event) => {
+        event.stopPropagation();
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1_500);
+        });
+      }}
+    >
+      {copied ? "✓" : "⧉"}
+    </button>
+  );
+}
+
+function MarkdownBody({ content }: { content: string }) {
+  return (
+    <div className="message-body markdown-body">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
+}
+
 export default function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -63,11 +95,13 @@ export default function App() {
   const [effectPreviews, setEffectPreviews] = useState<EffectPreview[]>([]);
   const [approvalWorkspaceHash, setApprovalWorkspaceHash] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"playground" | "security">("playground");
-  const messageEnd = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
+  const activeRunIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const pollingRunIds = useRef(new Set<string>());
   selectedIdRef.current = selectedId;
+  activeRunIdRef.current = activeRun?.id ?? null;
 
   const selected = useMemo(
     () => agents.find((agent) => agent.id === selectedId) ?? null,
@@ -78,6 +112,15 @@ export default function App() {
     !(["completed", "failed", "cancelled", "rolled_back"] as AgentRun["status"][]).includes(
       activeRun.status,
     );
+  const composerLock: string | null = !selected
+    ? null
+    : selected.status === "stopped"
+      ? "This Agent is stopped. Start it to send a task."
+      : activeRun?.status === "awaiting_approval"
+        ? "A staged manifest is waiting for your approval decision above."
+        : selected.status === "busy" || runIsOpen
+          ? "The Agent is working. You can send the next task when this run finishes."
+          : null;
 
   const refreshAgents = useCallback(async () => {
     const { agents: next } = await api.listAgents();
@@ -158,7 +201,8 @@ export default function App() {
   }, [selected]);
 
   useEffect(() => {
-    messageEnd.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
   }, [messages, activeRun]);
 
   useEffect(() => {
@@ -257,7 +301,9 @@ export default function App() {
         await new Promise((resolve) => window.setTimeout(resolve, 900));
         if (!mountedRef.current) return;
         const result = await api.run(runId);
-        if (selectedIdRef.current === agentId) setActiveRun(result.run);
+        if (selectedIdRef.current === agentId && activeRunIdRef.current === runId) {
+          setActiveRun(result.run);
+        }
         if (!pollingStatuses.includes(result.run.status)) {
           await Promise.all([refreshMessages(agentId), refreshAgents(), refreshRuns(agentId)]);
           return;
@@ -603,7 +649,10 @@ export default function App() {
                   />
                 </label>
                 <div className="panel-footer">
-                  <code>{selected.workspacePath}</code>
+                  <span className="panel-footer-path">
+                    <code>{selected.workspacePath}</code>
+                    <CopyButton value={selected.workspacePath} label="workspace path" />
+                  </span>
                   <button className="button button-primary" disabled={busy}>
                     {busy ? <Spinner /> : "Save changes"}
                   </button>
@@ -634,7 +683,6 @@ export default function App() {
                       <button
                         key={run.id}
                         className={"run-chip " + (activeRun?.id === run.id ? "selected" : "")}
-                        disabled={runIsOpen && activeRun?.id !== run.id}
                         aria-pressed={activeRun?.id === run.id}
                         onClick={() => {
                           setActiveRun(run);
@@ -653,7 +701,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="messages">
+              <div className="messages" ref={messagesRef}>
                 {messages.length === 0 && !activeRun ? (
                   <div className="welcome">
                     <div className="welcome-orbit">
@@ -680,11 +728,17 @@ export default function App() {
                         <strong>{message.role === "user" ? "You" : selected.name}</strong>
                         <span>{formatTime(message.createdAt)}</span>
                       </div>
-                      <div className="message-body">{message.content}</div>
+                      {message.role === "assistant" ? (
+                        <MarkdownBody content={message.content} />
+                      ) : (
+                        <div className="message-body">{message.content}</div>
+                      )}
                     </article>
                   ))
                 )}
-                {activeRun && pollingStatuses.includes(activeRun.status) && (
+                {activeRun &&
+                  activeRun.status !== "awaiting_approval" &&
+                  pollingStatuses.includes(activeRun.status) && (
                   <article className="message message-assistant thinking">
                     <div className="message-meta">
                       <strong>{selected.name}</strong>
@@ -715,7 +769,12 @@ export default function App() {
                       No external request has been sent. This approval applies only to the exact
                       combined manifest below.
                     </p>
-                    <code className="digest">{activeRun.manifestDigest}</code>
+                    <div className="digest-row">
+                      <code className="digest">{activeRun.manifestDigest}</code>
+                      {activeRun.manifestDigest && (
+                        <CopyButton value={activeRun.manifestDigest} label="manifest digest" />
+                      )}
+                    </div>
                     {activeRun.workspaceHashBefore && approvalWorkspaceHash && (
                       <div className="state-proof state-proof-stable">
                         <div>
@@ -876,7 +935,12 @@ export default function App() {
                       </div>
                     )}
                     <div className="evidence-footer">
-                      <code>{activeRun.manifestDigest?.slice(0, 20)}…</code>
+                      <code title={activeRun.manifestDigest ?? undefined}>
+                        {activeRun.manifestDigest?.slice(0, 20)}…
+                      </code>
+                      {activeRun.manifestDigest && (
+                        <CopyButton value={activeRun.manifestDigest} label="manifest digest" />
+                      )}
                       <span>{activeRun.trace.length} trace events</span>
                       {ledgerResult && <span>{ledgerResult}</span>}
                     </div>
@@ -919,10 +983,9 @@ export default function App() {
                     )}
                   </article>
                 )}
-                <div ref={messageEnd} />
               </div>
 
-              <form className="composer" onSubmit={sendMessage}>
+              <form className={"composer" + (composerLock ? " composer-locked" : "")} onSubmit={sendMessage}>
                 <textarea
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
@@ -932,30 +995,23 @@ export default function App() {
                       event.currentTarget.form?.requestSubmit();
                     }
                   }}
-                  placeholder={
-                    selected.status === "stopped"
-                      ? "Start this Agent to continue…"
-                      : "Describe what you want the Agent to do…"
-                  }
-                  disabled={
-                    selected.status === "stopped" ||
-                    selected.status === "busy" ||
-                    runIsOpen
-                  }
+                  placeholder={composerLock ?? "Describe what you want the Agent to do…"}
+                  disabled={composerLock !== null}
                   rows={3}
                 />
                 <div className="composer-footer">
-                  <span>
-                    Enter to send · Shift + Enter for newline · {system?.codexSandboxMode ?? "checking sandbox"}
+                  <span className={composerLock ? "composer-lock-hint" : undefined}>
+                    {composerLock ? (
+                      <>
+                        {(selected.status === "busy" || runIsOpen) && <Spinner />} {composerLock}
+                      </>
+                    ) : (
+                      <>Enter to send · Shift + Enter for newline · sandbox: {system?.codexSandboxMode ?? "checking"}</>
+                    )}
                   </span>
                   <button
                     className="send-button"
-                    disabled={
-                      !prompt.trim() ||
-                      selected.status === "stopped" ||
-                      selected.status === "busy" ||
-                      runIsOpen
-                    }
+                    disabled={!prompt.trim() || composerLock !== null}
                     aria-label="Send message"
                   >
                     ↑
