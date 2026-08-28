@@ -1,3 +1,30 @@
+import {
+  AlertIcon,
+  CheckCircleFillIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  ContainerIcon,
+  CopyIcon,
+  DatabaseIcon,
+  EyeIcon,
+  FileDiffIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  GraphIcon,
+  KeyIcon,
+  LockIcon,
+  PersonIcon,
+  PlayIcon,
+  PulseIcon,
+  SearchIcon,
+  ServerIcon,
+  ShieldCheckIcon,
+  ShieldLockIcon,
+  WorkflowIcon,
+  XCircleFillIcon,
+} from "@primer/octicons-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import type {
@@ -6,32 +33,39 @@ import type {
   Approval,
   EffectPreview,
   SecurityEvent,
+  SecurityModule,
+  SecurityOverview,
   SecurityStage,
 } from "./types";
-import type { SecurityOverview } from "./types";
 
-/* ---------- Presentation helpers ---------- */
+type Tab = "runs" | "approvals" | "modules" | "architecture";
+type Tone = "success" | "attention" | "danger" | "neutral";
 
-const stageLanes: Array<{ id: string; label: string; glyph: string; stages: SecurityStage[] }> = [
-  { id: "identity", label: "Identity", glyph: "◉", stages: ["identity"] },
-  { id: "runtime", label: "Runtime", glyph: "▣", stages: ["runtime"] },
-  { id: "policy", label: "Policy", glyph: "◆", stages: ["observe", "policy"] },
-  { id: "approval", label: "Approval", glyph: "❖", stages: ["approval"] },
-  { id: "effect", label: "Effect", glyph: "▶", stages: ["execute"] },
-  { id: "evidence", label: "Evidence", glyph: "✓", stages: ["recover", "verify"] },
+const lifecycle: Array<{
+  id: string;
+  label: string;
+  icon: typeof KeyIcon;
+  stages: SecurityStage[];
+}> = [
+  { id: "identity", label: "Identity", icon: KeyIcon, stages: ["identity"] },
+  { id: "runtime", label: "Runtime", icon: ContainerIcon, stages: ["runtime"] },
+  { id: "policy", label: "Policy", icon: ShieldLockIcon, stages: ["observe", "policy"] },
+  { id: "approval", label: "Approval", icon: PersonIcon, stages: ["approval"] },
+  { id: "effect", label: "Effect", icon: PlayIcon, stages: ["execute"] },
+  { id: "evidence", label: "Evidence", icon: DatabaseIcon, stages: ["recover", "verify"] },
 ];
 
-const eventTitles: Record<string, string> = {
+const eventNames: Record<string, string> = {
   "identity.control_plane_ready": "Identity plane ready",
   "identity.agent_provisioned": "Agent principal provisioned",
   "identity.agent_activated": "Agent principal activated",
   "identity.agent_revoked": "Agent principal revoked",
   "identity.delegation_issued": "Run capability issued",
   "identity.delegation_revoked": "Run capability revoked",
-  "run.staged": "Workspace staged for run",
-  "runtime.command_execution": "Command executed in runtime",
-  "runtime.file_change": "File change reported by runtime",
-  "runtime.mcp_tool_call": "Tool call reported by runtime",
+  "run.staged": "Disposable workspace staged",
+  "runtime.command_execution": "Command executed",
+  "runtime.file_change": "File change observed",
+  "runtime.mcp_tool_call": "Tool call observed",
   "effect.reviewed": "File effect reviewed",
   "external_effect.reviewed": "External request reviewed",
   "external_effect.executed": "External request executed",
@@ -40,130 +74,15 @@ const eventTitles: Record<string, string> = {
   "approval.approved": "Approval granted",
   "approval.denied": "Approval denied",
   "approval.expired": "Approval expired",
-  "run.committed": "Manifest committed to workspace",
-  "run.rolled_back": "Run rolled back",
+  "run.committed": "Manifest committed",
+  "run.rolled_back": "Workspace restored",
   "run.failed": "Run failed safely",
   "run.cancelled": "Run cancelled",
   "run.external_outcome_uncertain": "External outcome uncertain",
-  "trace.mismatch": "Trace does not match measured diff",
+  "trace.mismatch": "Trace mismatch detected",
   "ledger.verified": "Audit ledger verified",
-  "service.initialized": "Control plane recovered",
+  "service.initialized": "Control plane initialized",
 };
-
-type Tone = "deny" | "warn" | "ok" | "info";
-
-function eventTitle(event: SecurityEvent): string {
-  return eventTitles[event.type] ?? event.type.replaceAll("_", " ").replaceAll(".", " · ");
-}
-
-function eventTone(event: SecurityEvent): Tone {
-  if (event.severity === "critical" || event.decision === "deny" || event.decision === "denied") {
-    return "deny";
-  }
-  if (
-    event.severity === "high" ||
-    event.decision === "require_approval" ||
-    event.decision === "expired" ||
-    event.decision === "uncertain" ||
-    event.decision === "revoked"
-  ) {
-    return "warn";
-  }
-  if (["allow", "approved", "issued"].includes(event.decision ?? "")) return "ok";
-  return "info";
-}
-
-function eventResource(event: SecurityEvent): string | null {
-  const payload = event.payload ?? {};
-  const candidate = payload.resource ?? payload.url ?? payload.summary ?? null;
-  return typeof candidate === "string" ? candidate : null;
-}
-
-function decisionLabel(value: string | null | undefined): string {
-  if (!value) return "observed";
-  if (value === "require_approval") return "review";
-  return value.replaceAll("_", " ");
-}
-
-function short(value: string | null | undefined, length = 12): string {
-  if (!value) return "—";
-  return value.length > length ? value.slice(0, length) + "…" : value;
-}
-
-function fullTime(value: string | null | undefined): string {
-  if (!value) return "not recorded";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(value));
-}
-
-function relativeTime(value: string | null | undefined): string {
-  if (!value) return "—";
-  const delta = Date.now() - Date.parse(value);
-  if (delta < 60_000) return Math.max(1, Math.round(delta / 1_000)) + "s ago";
-  if (delta < 3_600_000) return Math.round(delta / 60_000) + "m ago";
-  if (delta < 86_400_000) return Math.round(delta / 3_600_000) + "h ago";
-  return fullTime(value);
-}
-
-function expiresIn(value: string): string {
-  const delta = Date.parse(value) - Date.now();
-  if (delta <= 0) return "expired";
-  if (delta < 60_000) return Math.round(delta / 1_000) + "s";
-  return Math.floor(delta / 60_000) + "m " + Math.round((delta % 60_000) / 1_000) + "s";
-}
-
-function runTone(status: AgentRun["status"]): Tone {
-  if (["failed", "rolled_back", "cancelled"].includes(status)) return "deny";
-  if (["awaiting_approval", "reviewing_effects", "rolling_back"].includes(status)) return "warn";
-  if (status === "completed") return "ok";
-  return "info";
-}
-
-function CopyChip({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className={"sc-copy" + (copied ? " copied" : "")}
-      title={copied ? "Copied" : "Copy " + label}
-      onClick={(event) => {
-        event.stopPropagation();
-        void navigator.clipboard.writeText(value).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1_400);
-        });
-      }}
-    >
-      {copied ? "✓" : "⧉"}
-    </button>
-  );
-}
-
-/* ---------- Scope model ---------- */
-
-type Scope =
-  | { kind: "all" }
-  | { kind: "platform" }
-  | { kind: "agent"; agentId: string }
-  | { kind: "run"; agentId: string; runId: string };
-
-type Drawer =
-  | { kind: "event"; event: SecurityEvent }
-  | { kind: "approval"; approvalId: string }
-  | null;
-
-type Tab = "activity" | "approvals" | "modules";
-
-interface SecurityCenterProps {
-  initialAgentId: string | null;
-  initialRunId?: string | null;
-  onOpenRun: (agentId: string, run: AgentRun) => void;
-}
 
 interface ApprovalDetail {
   approval: Approval;
@@ -172,32 +91,107 @@ interface ApprovalDetail {
   currentWorkspaceHash: string;
 }
 
+interface SecurityCenterProps {
+  initialAgentId: string | null;
+  initialRunId?: string | null;
+  onOpenRun: (agentId: string, run: AgentRun) => void;
+}
+
+function titleFor(event: SecurityEvent) {
+  return eventNames[event.type] ?? event.type.replaceAll("_", " ").replaceAll(".", " / ");
+}
+
+function toneFor(event: SecurityEvent): Tone {
+  if (["critical", "high"].includes(event.severity ?? "") || ["deny", "denied"].includes(event.decision ?? "")) return "danger";
+  if (["require_approval", "expired", "uncertain", "revoked"].includes(event.decision ?? "")) return "attention";
+  if (["allow", "approved", "issued"].includes(event.decision ?? "")) return "success";
+  return "neutral";
+}
+
+function runTone(status: AgentRun["status"]): Tone {
+  if (["failed", "rolled_back", "cancelled"].includes(status)) return "danger";
+  if (["awaiting_approval", "reviewing_effects", "rolling_back"].includes(status)) return "attention";
+  if (status === "completed") return "success";
+  return "neutral";
+}
+
+function short(value: string | null | undefined, length = 10) {
+  if (!value) return "None";
+  return value.length > length ? value.slice(0, length) + "…" : value;
+}
+
+function fullTime(value: string | null | undefined) {
+  if (!value) return "Not recorded";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
+}
+
+function elapsed(start: string | null | undefined, end: string | null | undefined) {
+  if (!start) return "Pending";
+  const milliseconds = Date.parse(end ?? new Date().toISOString()) - Date.parse(start);
+  if (milliseconds < 1_000) return milliseconds + " ms";
+  if (milliseconds < 60_000) return (milliseconds / 1_000).toFixed(1) + " s";
+  return (milliseconds / 60_000).toFixed(1) + " min";
+}
+
+function decisionText(value: string | null | undefined) {
+  if (!value) return "observed";
+  if (value === "require_approval") return "review";
+  return value.replaceAll("_", " ");
+}
+
+function eventResource(event: SecurityEvent) {
+  const payload = event.payload ?? {};
+  const candidate = payload.resource ?? payload.url ?? payload.summary;
+  return typeof candidate === "string" ? candidate : null;
+}
+
+function CopyControl({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="secx-icon-button"
+      type="button"
+      aria-label={copied ? "Copied" : "Copy " + label}
+      title={copied ? "Copied" : "Copy " + label}
+      onClick={(event) => {
+        event.stopPropagation();
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1_200);
+        });
+      }}
+    >
+      {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+    </button>
+  );
+}
+
 export function SecurityCenter({ initialAgentId, initialRunId, onOpenRun }: SecurityCenterProps) {
+  const [tab, setTab] = useState<Tab>("runs");
   const [overview, setOverview] = useState<SecurityOverview | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [runsByAgent, setRunsByAgent] = useState<Record<string, AgentRun[]>>({});
-  const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [tab, setTab] = useState<Tab>("activity");
-  const [scope, setScope] = useState<Scope>(
-    initialRunId && initialAgentId
-      ? { kind: "run", agentId: initialAgentId, runId: initialRunId }
-      : initialAgentId
-        ? { kind: "agent", agentId: initialAgentId }
-        : { kind: "all" },
-  );
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialAgentId);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(initialRunId ?? null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<string | null>(null);
   const [decisionFilter, setDecisionFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [drawer, setDrawer] = useState<Drawer>(null);
   const [approvalDetail, setApprovalDetail] = useState<ApprovalDetail | null>(null);
-  const [ledgerCheck, setLedgerCheck] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const scopeRef = useRef(scope);
-  scopeRef.current = scope;
-
-  /* ----- data loading ----- */
+  const [ledgerStatus, setLedgerStatus] = useState<string | null>(null);
+  const selectionRef = useRef({ agentId: selectedAgentId, runId: selectedRunId });
+  selectionRef.current = { agentId: selectedAgentId, runId: selectedRunId };
 
   const refreshStructure = useCallback(async () => {
     try {
@@ -206,52 +200,57 @@ export function SecurityCenter({ initialAgentId, initialRunId, onOpenRun }: Secu
         api.listAgents(),
         api.approvals(),
       ]);
-      const runEntries = await Promise.all(
-        agentResponse.agents.map(async (agent) => {
-          const response = await api.runs(agent.id);
-          return [agent.id, response.runs] as const;
-        }),
+      const entries = await Promise.all(
+        agentResponse.agents.map(async (agent) => [agent.id, (await api.runs(agent.id)).runs] as const),
       );
+      const nextRuns = Object.fromEntries(entries);
       setOverview(nextOverview);
       setAgents(agentResponse.agents);
-      setRunsByAgent(Object.fromEntries(runEntries));
+      setRunsByAgent(nextRuns);
       setApprovals(approvalResponse.approvals);
+      setSelectedModuleId((current) => current ?? nextOverview.modules[0]?.id ?? null);
+      setSelectedAgentId((current) => {
+        const agentId = current && agentResponse.agents.some((agent) => agent.id === current)
+          ? current
+          : (initialAgentId && agentResponse.agents.some((agent) => agent.id === initialAgentId)
+              ? initialAgentId
+              : agentResponse.agents[0]?.id ?? null);
+        if (agentId) {
+          setSelectedRunId((currentRun) => {
+            const available = nextRuns[agentId] ?? [];
+            if (currentRun && available.some((run) => run.id === currentRun)) return currentRun;
+            if (initialRunId && available.some((run) => run.id === initialRunId)) return initialRunId;
+            return available[0]?.id ?? null;
+          });
+        }
+        return agentId;
+      });
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
-  }, []);
+  }, [initialAgentId, initialRunId]);
 
   useEffect(() => {
-    let active = true;
-    const tick = async () => {
-      if (active) await refreshStructure();
-    };
-    void tick();
-    const timer = window.setInterval(() => void tick(), 5_000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
+    void refreshStructure();
+    const timer = window.setInterval(() => void refreshStructure(), 5_000);
+    return () => window.clearInterval(timer);
   }, [refreshStructure]);
 
   useEffect(() => {
     let active = true;
     const refreshEvents = async () => {
       try {
-        const current = scopeRef.current;
         const query = new URLSearchParams({ limit: "500" });
-        if (current.kind === "agent" || current.kind === "run") {
-          query.set("agentId", current.agentId);
-        }
-        if (current.kind === "run") query.set("runId", current.runId);
+        if (selectionRef.current.agentId) query.set("agentId", selectionRef.current.agentId);
+        if (selectionRef.current.runId) query.set("runId", selectionRef.current.runId);
         const response = await api.securityEvents(query.toString());
         if (!active) return;
-        setEvents(
-          current.kind === "platform"
-            ? response.events.filter((event) => !event.agentId)
-            : response.events,
-        );
+        setEvents(response.events);
+        setSelectedEventId((current) => {
+          if (current && response.events.some((event) => event.sequence === current)) return current;
+          return response.events.reduce((highest, event) => Math.max(highest, event.sequence), 0) || null;
+        });
       } catch (reason) {
         if (active) setError(reason instanceof Error ? reason.message : String(reason));
       }
@@ -262,764 +261,402 @@ export function SecurityCenter({ initialAgentId, initialRunId, onOpenRun }: Secu
       active = false;
       window.clearInterval(timer);
     };
-  }, [scope]);
-
-  useEffect(() => {
-    if (drawer?.kind !== "approval") {
-      setApprovalDetail(null);
-      return;
-    }
-    let active = true;
-    api
-      .approval(drawer.approvalId)
-      .then((detail) => {
-        if (active) setApprovalDetail(detail);
-      })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : String(reason));
-      });
-    return () => {
-      active = false;
-    };
-  }, [drawer]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDrawer(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  /* ----- derived data ----- */
+  }, [selectedAgentId, selectedRunId]);
 
   const agentById = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents]);
+  const selectedAgent = selectedAgentId ? agentById.get(selectedAgentId) ?? null : null;
+  const selectedRun = selectedAgentId && selectedRunId
+    ? (runsByAgent[selectedAgentId] ?? []).find((run) => run.id === selectedRunId) ?? null
+    : null;
+  const selectedEvent = selectedEventId
+    ? events.find((event) => event.sequence === selectedEventId) ?? null
+    : null;
+  const selectedModule = overview?.modules.find((module) => module.id === selectedModuleId) ?? null;
 
-  const scopedEvents = events;
-  const laneCounts = useMemo(() => {
-    const counts = new Map<string, { total: number; tone: Tone }>();
-    for (const lane of stageLanes) counts.set(lane.id, { total: 0, tone: "info" });
-    const rank: Record<Tone, number> = { info: 0, ok: 1, warn: 2, deny: 3 };
-    for (const event of scopedEvents) {
-      const lane = stageLanes.find((item) => event.stage && item.stages.includes(event.stage));
-      if (!lane) continue;
-      const entry = counts.get(lane.id)!;
-      entry.total += 1;
-      const tone = eventTone(event);
-      if (rank[tone] > rank[entry.tone]) entry.tone = tone;
+  const sessions = useMemo(() => {
+    if (!selectedAgent) return [];
+    const groups = new Map<string, AgentRun[]>();
+    for (const run of runsByAgent[selectedAgent.id] ?? []) {
+      const id = run.pendingThreadId ?? selectedAgent.codexThreadId ?? "unassigned";
+      groups.set(id, [...(groups.get(id) ?? []), run]);
     }
-    return counts;
-  }, [scopedEvents]);
+    return [...groups.entries()].map(([id, runs]) => ({ id, runs }));
+  }, [runsByAgent, selectedAgent]);
 
-  const decisionMix = useMemo(() => {
-    let allow = 0;
-    let review = 0;
-    let deny = 0;
-    for (const event of scopedEvents) {
-      if (event.decision === "allow" || event.decision === "approved") allow += 1;
-      else if (event.decision === "require_approval") review += 1;
-      else if (event.decision === "deny" || event.decision === "denied") deny += 1;
-    }
-    return { allow, review, deny, total: allow + review + deny };
-  }, [scopedEvents]);
+  const stageCounts = useMemo(() => {
+    return new Map(lifecycle.map((lane) => [
+      lane.id,
+      events.filter((event) => event.stage && lane.stages.includes(event.stage)).length,
+    ]));
+  }, [events]);
 
   const visibleEvents = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    const lane = stageFilter ? stageLanes.find((item) => item.id === stageFilter) : null;
-    return scopedEvents.filter((event) => {
-      if (lane && !(event.stage && lane.stages.includes(event.stage))) return false;
-      if (decisionFilter !== "all") {
-        if (decisionFilter === "deny" && !["deny", "denied"].includes(event.decision ?? "")) {
-          return false;
+    const lane = lifecycle.find((item) => item.id === stageFilter);
+    return [...events]
+      .sort((a, b) => a.sequence - b.sequence)
+      .filter((event) => {
+        if (lane && !(event.stage && lane.stages.includes(event.stage))) return false;
+        if (decisionFilter !== "all") {
+          if (decisionFilter === "allow" && !["allow", "approved", "issued"].includes(event.decision ?? "")) return false;
+          if (decisionFilter === "review" && event.decision !== "require_approval") return false;
+          if (decisionFilter === "deny" && !["deny", "denied"].includes(event.decision ?? "")) return false;
         }
-        if (decisionFilter === "review" && event.decision !== "require_approval") return false;
-        if (decisionFilter === "allow" && !["allow", "approved"].includes(event.decision ?? "")) {
-          return false;
-        }
-      }
-      if (!needle) return true;
-      return [
-        event.type,
-        eventTitle(event),
-        event.reason,
-        event.ruleId,
-        event.agentName,
-        event.runPrompt,
-        event.moduleId,
-        eventResource(event),
-      ].some((value) => value?.toLowerCase().includes(needle));
-    });
-  }, [decisionFilter, scopedEvents, search, stageFilter]);
+        if (!needle) return true;
+        return [titleFor(event), event.reason, event.ruleId, event.moduleId, eventResource(event)]
+          .some((value) => value?.toLowerCase().includes(needle));
+      });
+  }, [decisionFilter, events, search, stageFilter]);
 
   const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
-  const decidedApprovals = approvals.filter((approval) => approval.status !== "pending");
+  const moduleEvents = selectedModule
+    ? overview?.recentEvents.filter((event) => event.moduleId === selectedModule.id) ?? []
+    : [];
 
-  const scopeAgent =
-    scope.kind === "agent" || scope.kind === "run" ? agentById.get(scope.agentId) ?? null : null;
-  const scopeRun =
-    scope.kind === "run"
-      ? (runsByAgent[scope.agentId] ?? []).find((run) => run.id === scope.runId) ?? null
-      : null;
-
-  /* ----- actions ----- */
-
-  const verifyLedger = async () => {
-    setLedgerCheck("checking…");
+  const openApproval = async (approvalId: string) => {
     try {
-      const result = await api.verifyLedger();
-      setLedgerCheck(
-        result.valid
-          ? "chain intact · " + result.events + " events"
-          : "BROKEN at event " + (result.brokenAt ?? "?"),
-      );
-      window.setTimeout(() => setLedgerCheck(null), 6_000);
+      setApprovalDetail(await api.approval(approvalId));
     } catch (reason) {
-      setLedgerCheck(reason instanceof Error ? reason.message : String(reason));
+      setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
     setBusy(true);
-    setError(null);
     try {
       await (decision === "approve" ? api.approve(approvalId) : api.deny(approvalId));
-      setDrawer(null);
+      setApprovalDetail(null);
       await refreshStructure();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
-      await refreshStructure();
     } finally {
       setBusy(false);
     }
   };
 
-  const scopeLabel =
-    scope.kind === "all"
-      ? "All activity"
-      : scope.kind === "platform"
-        ? "Platform"
-        : scope.kind === "agent"
-          ? scopeAgent?.name ?? "Agent"
-          : (scopeAgent?.name ?? "Agent") + " · run " + short(scope.runId, 8);
+  const verifyLedger = async () => {
+    setLedgerStatus("Verifying");
+    try {
+      const result = await api.verifyLedger();
+      setLedgerStatus(result.valid ? `Verified ${result.events} events` : `Broken at ${result.brokenAt ?? "unknown"}`);
+      window.setTimeout(() => setLedgerStatus(null), 4_000);
+    } catch (reason) {
+      setLedgerStatus(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
 
   if (!overview) {
     return (
-      <section className="sc-root sc-loading" aria-live="polite">
-        <span className="sc-pulse" />
-        {error ?? "Connecting to the security plane…"}
+      <section className="secx secx-loading" aria-live="polite">
+        <div className="secx-skeleton secx-skeleton-title" />
+        <div className="secx-skeleton secx-skeleton-nav" />
+        <div className="secx-skeleton secx-skeleton-body" />
       </section>
     );
   }
 
-  /* ----- render ----- */
+  const tabs: Array<{ id: Tab; label: string; icon: typeof PulseIcon; count?: number }> = [
+    { id: "runs", label: "Run traces", icon: PulseIcon },
+    { id: "approvals", label: "Approvals", icon: PersonIcon, count: pendingApprovals.length },
+    { id: "modules", label: "Modules", icon: GitBranchIcon, count: overview.modules.length },
+    { id: "architecture", label: "Architecture", icon: GraphIcon },
+  ];
 
   return (
-    <section className="sc-root">
-      {/* Top bar */}
-      <header className="sc-topbar">
-        <div className="sc-topbar-title">
-          <span className="sc-shield">⛨</span>
+    <section className="secx">
+      <header className="secx-header">
+        <div className="secx-title">
+          <span className="secx-product-mark"><ShieldCheckIcon size={21} /></span>
           <div>
             <h1>Security Center</h1>
-            <p>Agent Effect Gateway · zero-trust arbitration evidence</p>
+            <p>Investigate every Agent effect from delegation to evidence.</p>
           </div>
         </div>
-        <div className="sc-topbar-actions">
-          <span className={"sc-posture sc-posture-" + overview.posture}>
-            <span className="sc-pulse" />
+        <div className="secx-header-actions">
+          <span className={"secx-posture secx-tone-" + (overview.posture === "protected" ? "success" : "danger")}>
+            {overview.posture === "protected" ? <CheckCircleFillIcon size={14} /> : <AlertIcon size={14} />}
             {overview.posture === "protected" ? "Protected" : "Degraded"}
           </span>
-          <button className="sc-ledger-chip" onClick={() => void verifyLedger()} title="Re-verify the HMAC event chain">
-            <span className={overview.ledger.valid ? "sc-dot-ok" : "sc-dot-deny"} />
-            {ledgerCheck ?? "Ledger · " + overview.ledger.events + " signed events"}
+          <button className="secx-ledger" onClick={() => void verifyLedger()}>
+            <LockIcon size={14} />
+            {ledgerStatus ?? `${overview.ledger.events} signed events`}
           </button>
         </div>
       </header>
 
-      {error && <div className="sc-error">{error}</div>}
+      {error && (
+        <div className="secx-alert" role="alert">
+          <AlertIcon size={16} />
+          <span>{error}</span>
+          <button onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
 
-      {/* KPI strip */}
-      <div className="sc-kpis">
-        {[
-          { label: "Agent runs", value: overview.totals.runs, sub: overview.totals.agents + " agents", tone: "info" },
-          { label: "Effects reviewed", value: overview.totals.effects, sub: "complete mediation", tone: "info" },
-          { label: "Blocked", value: overview.totals.blocked, sub: "policy denials", tone: overview.totals.blocked > 0 ? "deny" : "info" },
-          { label: "Awaiting approval", value: overview.totals.awaitingApproval, sub: "digest-bound", tone: overview.totals.awaitingApproval > 0 ? "warn" : "info" },
-          { label: "Rolled back", value: overview.totals.rolledBack, sub: "state restored", tone: "info" },
-          { label: "Run capabilities", value: overview.identity.issuedCapabilities, sub: overview.identity.activeAgentPrincipals + " active principals", tone: "info" },
-        ].map((kpi) => (
-          <div className={"sc-kpi sc-kpi-" + kpi.tone} key={kpi.label}>
-            <span className="sc-kpi-label">{kpi.label}</span>
-            <strong>{kpi.value}</strong>
-            <small>{kpi.sub}</small>
-          </div>
-        ))}
+      <div className="secx-metrics" aria-label="Security overview">
+        <div><span>Runs monitored</span><strong>{overview.totals.runs}</strong><small>{overview.totals.agents} Agents</small></div>
+        <div><span>Effects mediated</span><strong>{overview.totals.effects}</strong><small>Files and HTTP</small></div>
+        <div><span>Policy blocks</span><strong className={overview.totals.blocked ? "secx-danger-text" : ""}>{overview.totals.blocked}</strong><small>{overview.totals.rolledBack} restored</small></div>
+        <div><span>Capabilities issued</span><strong>{overview.identity.issuedCapabilities}</strong><small>{overview.identity.activeAgentPrincipals} active principals</small></div>
       </div>
 
-      {/* Tabs */}
-      <nav className="sc-tabs" role="tablist">
-        <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}>
-          Activity
-        </button>
-        <button className={tab === "approvals" ? "active" : ""} onClick={() => setTab("approvals")}>
-          Approvals
-          {pendingApprovals.length > 0 && <span className="sc-badge">{pendingApprovals.length}</span>}
-        </button>
-        <button className={tab === "modules" ? "active" : ""} onClick={() => setTab("modules")}>
-          Modules
-        </button>
+      <nav className="secx-tabs" aria-label="Security Center sections">
+        {tabs.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
+              <Icon size={15} />
+              {item.label}
+              {Boolean(item.count) && <span>{item.count}</span>}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* ============ ACTIVITY ============ */}
-      {tab === "activity" && (
-        <div className="sc-activity">
-          <aside className="sc-scope" aria-label="Scope">
-            <button
-              className={"sc-scope-item" + (scope.kind === "all" ? " active" : "")}
-              onClick={() => setScope({ kind: "all" })}
-            >
-              <span className="sc-scope-glyph">∗</span> All activity
-            </button>
-            <button
-              className={"sc-scope-item" + (scope.kind === "platform" ? " active" : "")}
-              onClick={() => setScope({ kind: "platform" })}
-            >
-              <span className="sc-scope-glyph">⌂</span> Platform
-            </button>
-            <div className="sc-scope-heading">Agents</div>
-            {agents.map((agent) => {
-              const active =
-                (scope.kind === "agent" || scope.kind === "run") && scope.agentId === agent.id;
-              const runs = runsByAgent[agent.id] ?? [];
-              return (
-                <div key={agent.id} className="sc-scope-group">
-                  <button
-                    className={"sc-scope-item" + (scope.kind === "agent" && active ? " active" : "")}
-                    onClick={() => setScope({ kind: "agent", agentId: agent.id })}
-                  >
-                    <span className="sc-scope-avatar">{agent.name.slice(0, 1).toUpperCase()}</span>
-                    <span className="sc-scope-name">{agent.name}</span>
-                    <span className="sc-scope-count">{runs.length}</span>
-                  </button>
-                  {active && runs.length > 0 && (
-                    <div className="sc-scope-runs">
-                      {runs.map((run) => (
-                        <button
-                          key={run.id}
-                          className={
-                            "sc-scope-run" +
-                            (scope.kind === "run" && scope.runId === run.id ? " active" : "")
-                          }
-                          onClick={() => setScope({ kind: "run", agentId: agent.id, runId: run.id })}
-                          title={run.prompt}
-                        >
-                          <span className={"sc-dot-" + runTone(run.status)} />
-                          <span className="sc-scope-run-prompt">{run.prompt}</span>
-                          <small>{run.status.replaceAll("_", " ")}</small>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+      {tab === "runs" && (
+        <div className="secx-workbench">
+          <aside className="secx-run-index">
+            <div className="secx-panel-title">
+              <div><h2>Execution context</h2><p>Agent / Session / Run</p></div>
+            </div>
+            <div className="secx-agent-switcher">
+              <label htmlFor="secx-agent-select">Agent</label>
+              <div>
+                <ServerIcon size={15} />
+                <select
+                  id="secx-agent-select"
+                  value={selectedAgentId ?? ""}
+                  onChange={(event) => {
+                    const agentId = event.target.value || null;
+                    setSelectedAgentId(agentId);
+                    setSelectedRunId(agentId ? runsByAgent[agentId]?.[0]?.id ?? null : null);
+                    setStageFilter(null);
+                  }}
+                >
+                  {agents.length === 0 && <option value="">No Agents</option>}
+                  {agents.map((agent) => <option value={agent.id} key={agent.id}>{agent.name}</option>)}
+                </select>
+                <ChevronDownIcon size={14} />
+              </div>
+            </div>
+            <div className="secx-session-list">
+              {sessions.length === 0 ? (
+                <div className="secx-compact-empty">
+                  <WorkflowIcon size={20} />
+                  <p>No Runs for this Agent.</p>
                 </div>
-              );
-            })}
+              ) : sessions.map((session) => (
+                <section className="secx-session" key={session.id}>
+                  <header><GitBranchIcon size={13} /><span>Session</span><code>{short(session.id, 8)}</code></header>
+                  {session.runs.map((run) => (
+                    <button
+                      className={"secx-run-item" + (run.id === selectedRunId ? " active" : "")}
+                      key={run.id}
+                      onClick={() => {
+                        setSelectedRunId(run.id);
+                        setStageFilter(null);
+                      }}
+                    >
+                      <span className={"secx-run-icon secx-tone-" + runTone(run.status)}>
+                        {run.status === "completed" ? <CheckCircleFillIcon size={13} /> : run.status === "rolled_back" ? <XCircleFillIcon size={13} /> : <ClockIcon size={13} />}
+                      </span>
+                      <span><strong>{run.prompt}</strong><small>{fullTime(run.createdAt)} · {run.status.replaceAll("_", " ")}</small></span>
+                      <ChevronRightIcon size={14} />
+                    </button>
+                  ))}
+                </section>
+              ))}
+            </div>
           </aside>
 
-          <main className="sc-main">
-            {/* Scope header / run card */}
-            <div className="sc-scope-header">
-              <div>
-                <div className="sc-breadcrumbs">
-                  <span>Security Center</span>
-                  <b>/</b>
-                  <strong>{scopeLabel}</strong>
-                </div>
-                {scopeRun ? (
-                  <>
-                    <h2>{scopeRun.prompt}</h2>
-                    <p>
-                      {fullTime(scopeRun.startedAt ?? scopeRun.createdAt)} · policy{" "}
-                      {short(scopeRun.policyVersion, 26)} · capability{" "}
-                      {short(scopeRun.securityContextId, 8)}
-                    </p>
-                  </>
-                ) : (
-                  <p className="sc-scope-summary">
-                    {scope.kind === "platform"
-                      ? "Control-plane startup, recovery and ledger events."
-                      : "Every decision below is signed into the tamper-evident ledger."}
-                  </p>
-                )}
-              </div>
-              <div className="sc-scope-header-side">
-                {scopeRun && (
-                  <>
-                    <span className={"sc-runstate sc-runstate-" + runTone(scopeRun.status)}>
-                      {scopeRun.status.replaceAll("_", " ")}
-                    </span>
-                    {scopeAgent && (
-                      <button className="sc-link" onClick={() => onOpenRun(scopeAgent.id, scopeRun)}>
-                        Open in Playground →
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+          <main className="secx-trace-panel">
+            {selectedRun ? (
+              <>
+                <header className="secx-run-header">
+                  <div>
+                    <div className="secx-breadcrumb"><span>{selectedAgent?.name}</span><ChevronRightIcon size={12} /><code>{short(selectedRun.id, 12)}</code></div>
+                    <h2>{selectedRun.prompt}</h2>
+                    <p>{fullTime(selectedRun.startedAt ?? selectedRun.createdAt)} · {elapsed(selectedRun.startedAt, selectedRun.completedAt)}</p>
+                  </div>
+                  <div className="secx-run-actions">
+                    <span className={"secx-status secx-tone-" + runTone(selectedRun.status)}>{selectedRun.status.replaceAll("_", " ")}</span>
+                    {selectedAgent && <button onClick={() => onOpenRun(selectedAgent.id, selectedRun)}>Open Playground</button>}
+                  </div>
+                </header>
 
-            {scopeRun && (
-              <div className="sc-run-facts">
-                <div>
-                  <span>Effects</span>
-                  <strong>{scopeRun.effects.length + scopeRun.externalEffects.length}</strong>
+                <div className="secx-run-proof">
+                  <div><FileDiffIcon size={15} /><span>Effects</span><strong>{selectedRun.effects.length + selectedRun.externalEffects.length}</strong></div>
+                  <div><ShieldLockIcon size={15} /><span>Policy</span><strong>{short(selectedRun.policyVersion, 16)}</strong></div>
+                  <div><KeyIcon size={15} /><span>Capability</span><strong>{short(selectedRun.securityContextId, 12)}</strong></div>
+                  <div><LockIcon size={15} /><span>Manifest</span><strong>{short(selectedRun.manifestDigest, 12)}</strong>{selectedRun.manifestDigest && <CopyControl value={selectedRun.manifestDigest} label="manifest digest" />}</div>
                 </div>
-                <div>
-                  <span>Blocked</span>
-                  <strong>
-                    {[...scopeRun.effects, ...scopeRun.externalEffects].filter(
-                      (effect) => effect.decision === "deny",
-                    ).length}
-                  </strong>
-                </div>
-                <div>
-                  <span>Manifest digest</span>
-                  <strong className="sc-mono">
-                    {short(scopeRun.manifestDigest, 14)}
-                    {scopeRun.manifestDigest && (
-                      <CopyChip value={scopeRun.manifestDigest} label="manifest digest" />
-                    )}
-                  </strong>
-                </div>
-                <div>
-                  <span>Workspace integrity</span>
-                  <strong className="sc-mono">
-                    {scopeRun.workspaceHashBefore && scopeRun.workspaceHashAfter
-                      ? scopeRun.workspaceHashBefore === scopeRun.workspaceHashAfter
-                        ? scopeRun.status === "rolled_back"
-                          ? "restored exactly"
-                          : "unchanged"
-                        : "committed change"
-                      : "pending"}
-                  </strong>
-                </div>
+
+                <section className="secx-lifecycle">
+                  <header><h3>Run path</h3><p>Click a stage to isolate its evidence.</p></header>
+                  <div className="secx-lifecycle-track">
+                    {lifecycle.map((lane, index) => {
+                      const Icon = lane.icon;
+                      const count = stageCounts.get(lane.id) ?? 0;
+                      const laneEvents = events.filter((event) => event.stage && lane.stages.includes(event.stage));
+                      const tone = laneEvents.some((event) => toneFor(event) === "danger") ? "danger"
+                        : laneEvents.some((event) => toneFor(event) === "attention") ? "attention"
+                          : count ? "success" : "neutral";
+                      return (
+                        <button
+                          key={lane.id}
+                          className={"secx-stage secx-tone-" + tone + (stageFilter === lane.id ? " active" : "")}
+                          onClick={() => setStageFilter(stageFilter === lane.id ? null : lane.id)}
+                        >
+                          {index < lifecycle.length - 1 && <i className="secx-stage-connector" />}
+                          <span className="secx-stage-icon"><Icon size={16} /></span>
+                          <strong>{lane.label}</strong>
+                          <small>{count ? `${count} events` : "Not reached"}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="secx-event-stream">
+                  <div className="secx-event-toolbar">
+                    <div><h3>Trace events</h3><span>{visibleEvents.length} shown</span></div>
+                    <div className="secx-event-filters">
+                      <div className="secx-search"><SearchIcon size={14} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search trace" aria-label="Search trace" /></div>
+                      <select value={decisionFilter} onChange={(event) => setDecisionFilter(event.target.value)} aria-label="Decision filter">
+                        <option value="all">All decisions</option>
+                        <option value="allow">Allowed</option>
+                        <option value="review">Review</option>
+                        <option value="deny">Denied</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="secx-event-columns" aria-hidden="true"><span>Time</span><span>Stage</span><span>Event</span><span>Decision</span></div>
+                  <div className="secx-event-list">
+                    {visibleEvents.length === 0 ? (
+                      <div className="secx-empty"><EyeIcon size={28} /><h3>No trace events</h3><p>Run the Agent once to populate this execution path.</p></div>
+                    ) : visibleEvents.map((event) => {
+                      const lane = lifecycle.find((item) => event.stage && item.stages.includes(event.stage));
+                      return (
+                        <button key={event.sequence} className={"secx-event-row" + (selectedEventId === event.sequence ? " active" : "")} onClick={() => setSelectedEventId(event.sequence)}>
+                          <time>{new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(event.createdAt))}</time>
+                          <span className="secx-event-stage">{lane?.label ?? event.stage ?? "System"}</span>
+                          <span className="secx-event-summary"><strong>{titleFor(event)}</strong><small>{eventResource(event) ?? event.reason ?? "Evidence recorded"}</small></span>
+                          <span className={"secx-decision secx-tone-" + toneFor(event)}>{decisionText(event.decision)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <div className="secx-empty secx-empty-large">
+                <PulseIcon size={34} />
+                <h2>Select a Run to investigate</h2>
+                <p>Each Run keeps its own identity, policy, effects and evidence.</p>
               </div>
             )}
+          </main>
 
-            {/* Pipeline */}
-            <div className="sc-pipeline" role="group" aria-label="Enforcement pipeline">
-              {stageLanes.map((lane, index) => {
-                const entry = laneCounts.get(lane.id)!;
-                const active = stageFilter === lane.id;
+          <aside className="secx-inspector">
+            <div className="secx-panel-title"><div><h2>Evidence</h2><p>Selected trace event</p></div>{selectedEvent && <span>#{selectedEvent.sequence}</span>}</div>
+            {selectedEvent ? (
+              <div className="secx-inspector-content">
+                <header><span className={"secx-evidence-icon secx-tone-" + toneFor(selectedEvent)}><ShieldCheckIcon size={17} /></span><div><h3>{titleFor(selectedEvent)}</h3><p>{fullTime(selectedEvent.createdAt)}</p></div></header>
+                <p className="secx-reason">{selectedEvent.reason ?? "This event was recorded by the security evidence ledger."}</p>
+                <dl>
+                  <div><dt>Decision</dt><dd><span className={"secx-decision secx-tone-" + toneFor(selectedEvent)}>{decisionText(selectedEvent.decision)}</span></dd></div>
+                  <div><dt>Module</dt><dd>{selectedEvent.moduleId ?? "audit-ledger"}</dd></div>
+                  <div><dt>Rule</dt><dd>{selectedEvent.ruleId ?? "No rule"}</dd></div>
+                  <div><dt>Human</dt><dd><code>{short(selectedEvent.humanId, 20)}</code></dd></div>
+                  <div><dt>Agent</dt><dd>{selectedEvent.agentName ?? "Platform"}</dd></div>
+                  <div><dt>Effect</dt><dd><code>{short(selectedEvent.effectId, 20)}</code></dd></div>
+                </dl>
+                {selectedEvent.payload && Object.keys(selectedEvent.payload).length > 0 && (
+                  <section className="secx-payload"><h4>Redacted payload</h4><pre>{JSON.stringify(selectedEvent.payload, null, 2)}</pre></section>
+                )}
+                <footer><div><LockIcon size={13} /><span>Ledger MAC</span></div><code>{short(selectedEvent.eventMac, 25)}</code><CopyControl value={selectedEvent.eventMac} label="event MAC" /></footer>
+              </div>
+            ) : <div className="secx-compact-empty"><EyeIcon size={24} /><p>Select an event to inspect its rule, identity and ledger proof.</p></div>}
+          </aside>
+        </div>
+      )}
+
+      {tab === "approvals" && (
+        <div className="secx-page">
+          <header className="secx-page-header"><div><h2>Human approvals</h2><p>Review the exact measured manifest before any high-risk effect persists.</p></div><span>{pendingApprovals.length} pending</span></header>
+          <div className="secx-approval-list">
+            {approvals.length === 0 ? <div className="secx-empty secx-empty-large"><PersonIcon size={34} /><h2>No approval requests</h2><p>High-risk effects will pause here with a digest-bound review.</p></div>
+              : approvals.map((approval) => {
+                const run = (runsByAgent[approval.agentId] ?? []).find((item) => item.id === approval.runId);
                 return (
-                  <div className="sc-pipeline-cell" key={lane.id}>
-                    {index > 0 && <span className="sc-pipeline-link" />}
-                    <button
-                      className={
-                        "sc-stage sc-stage-" + (entry.total === 0 ? "empty" : entry.tone) +
-                        (active ? " active" : "")
-                      }
-                      onClick={() => setStageFilter(active ? null : lane.id)}
-                      title={entry.total + " events in " + lane.label}
-                    >
-                      <span className="sc-stage-glyph">{lane.glyph}</span>
-                      <span className="sc-stage-label">{lane.label}</span>
-                      <span className="sc-stage-count">{entry.total}</span>
-                    </button>
-                  </div>
+                  <button className="secx-approval-row" key={approval.id} onClick={() => void openApproval(approval.id)}>
+                    <span className={"secx-approval-icon secx-tone-" + (approval.status === "pending" ? "attention" : approval.status === "approved" ? "success" : "danger")}><PersonIcon size={16} /></span>
+                    <span><strong>{run?.prompt ?? "Staged manifest"}</strong><small>{agentById.get(approval.agentId)?.name ?? "Agent"} · digest {short(approval.manifestDigest, 16)}</small></span>
+                    <span className="secx-status">{approval.status}</span>
+                    <time>{fullTime(approval.createdAt)}</time>
+                    <ChevronRightIcon size={15} />
+                  </button>
                 );
               })}
-            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Toolbar */}
-            <div className="sc-toolbar">
-              <div className="sc-mix" title={"allow " + decisionMix.allow + " · review " + decisionMix.review + " · deny " + decisionMix.deny}>
-                {decisionMix.total > 0 ? (
-                  <>
-                    <span className="sc-mix-bar">
-                      <i style={{ flexGrow: decisionMix.allow }} className="sc-mix-allow" />
-                      <i style={{ flexGrow: decisionMix.review }} className="sc-mix-review" />
-                      <i style={{ flexGrow: decisionMix.deny }} className="sc-mix-deny" />
-                    </span>
-                    <span className="sc-mix-legend">
-                      <em className="sc-mix-allow-dot" /> {decisionMix.allow}
-                      <em className="sc-mix-review-dot" /> {decisionMix.review}
-                      <em className="sc-mix-deny-dot" /> {decisionMix.deny}
-                    </span>
-                  </>
-                ) : (
-                  <span className="sc-mix-empty">No decisions in scope</span>
-                )}
-              </div>
-              <div className="sc-filters">
-                {(["all", "allow", "review", "deny"] as const).map((value) => (
-                  <button
-                    key={value}
-                    className={
-                      "sc-filter sc-filter-" + value + (decisionFilter === value ? " active" : "")
-                    }
-                    onClick={() => setDecisionFilter(value)}
-                  >
-                    {value === "all" ? "All" : decisionLabel(value === "review" ? "require_approval" : value)}
-                  </button>
-                ))}
-                <input
-                  className="sc-search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search events, rules, resources…"
-                  aria-label="Search events"
-                />
-              </div>
-            </div>
-
-            {/* Timeline */}
-            <div className="sc-timeline">
-              {visibleEvents.length === 0 ? (
-                <div className="sc-empty">
-                  <span className="sc-empty-glyph">◈</span>
-                  <h3>No events in this scope</h3>
-                  <p>
-                    {scope.kind === "run" || scope.kind === "agent"
-                      ? "Send this Agent a task in the Playground — every decision will land here."
-                      : "Adjust the filters, or run an Agent to generate security evidence."}
-                  </p>
-                </div>
-              ) : (
-                visibleEvents.map((event) => {
-                  const tone = eventTone(event);
-                  const resource = eventResource(event);
-                  return (
-                    <button
-                      key={event.sequence}
-                      className={
-                        "sc-event" +
-                        (drawer?.kind === "event" && drawer.event.sequence === event.sequence
-                          ? " active"
-                          : "")
-                      }
-                      onClick={() => setDrawer({ kind: "event", event })}
-                    >
-                      <span className="sc-event-rail">
-                        <i className={"sc-node sc-node-" + tone} />
-                      </span>
-                      <time title={fullTime(event.createdAt)}>{relativeTime(event.createdAt)}</time>
-                      <div className="sc-event-body">
-                        <div className="sc-event-title">
-                          <strong>{eventTitle(event)}</strong>
-                          {resource && <code>{short(resource, 44)}</code>}
-                        </div>
-                        <small>
-                          {event.reason ?? "Security event recorded"}
-                          {scope.kind !== "run" && event.agentName ? " · " + event.agentName : ""}
-                        </small>
-                      </div>
-                      <span className={"sc-decision sc-decision-" + tone}>
-                        {decisionLabel(event.decision)}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+      {tab === "modules" && (
+        <div className="secx-module-workbench">
+          <aside className="secx-module-index">
+            <div className="secx-panel-title"><div><h2>Security modules</h2><p>Composable enforcement chain</p></div></div>
+            {overview.modules.map((module) => (
+              <button className={selectedModuleId === module.id ? "active" : ""} key={module.id} onClick={() => setSelectedModuleId(module.id)}>
+                <span className="secx-module-icon">{moduleIcon(module)}</span>
+                <span><strong>{module.name}</strong><small>{module.kind} · {module.events} events</small></span>
+                <span className={"secx-module-state " + module.status}>{module.status}</span>
+              </button>
+            ))}
+          </aside>
+          <main className="secx-module-detail">
+            {selectedModule ? (
+              <>
+                <header><span className="secx-module-hero-icon">{moduleIcon(selectedModule, 24)}</span><div><span>{selectedModule.kind} module</span><h2>{selectedModule.name}</h2><p>{selectedModule.description}</p></div></header>
+                <div className="secx-module-meta"><div><span>Plugin ID</span><code>{selectedModule.id}</code></div><div><span>Version</span><code>{selectedModule.version}</code></div><div><span>Status</span><strong>{selectedModule.status}</strong></div><div><span>Observed events</span><strong>{selectedModule.events}</strong></div></div>
+                <section><h3>Capabilities</h3><div className="secx-capabilities">{selectedModule.capabilities.map((capability) => <span key={capability}><CheckIcon size={13} />{capability}</span>)}</div></section>
+                <section><h3>Recent activity</h3>{moduleEvents.length ? <div className="secx-module-events">{moduleEvents.map((event) => <button key={event.sequence} onClick={() => { setTab("runs"); setSelectedAgentId(event.agentId ?? null); setSelectedRunId(event.runId ?? null); setSelectedEventId(event.sequence); }}><span className={"secx-tone-" + toneFor(event)}><PulseIcon size={13} /></span><span><strong>{titleFor(event)}</strong><small>{event.reason ?? fullTime(event.createdAt)}</small></span><ChevronRightIcon size={14} /></button>)}</div> : <p className="secx-muted">No recent activity for this module.</p>}</section>
+              </>
+            ) : <div className="secx-empty"><GitBranchIcon size={28} /><h3>Select a module</h3></div>}
           </main>
         </div>
       )}
 
-      {/* ============ APPROVALS ============ */}
-      {tab === "approvals" && (
-        <div className="sc-approvals">
-          <section>
-            <div className="sc-section-heading">
-              <h2>Pending decisions</h2>
-              <span>{pendingApprovals.length}</span>
-            </div>
-            {pendingApprovals.length === 0 ? (
-              <div className="sc-empty">
-                <span className="sc-empty-glyph">❖</span>
-                <h3>Nothing is waiting on you</h3>
-                <p>High-risk manifests pause here until a human approves the exact digest.</p>
-              </div>
-            ) : (
-              <div className="sc-approval-grid">
-                {pendingApprovals.map((approval) => {
-                  const agent = agentById.get(approval.agentId);
-                  const run = (runsByAgent[approval.agentId] ?? []).find(
-                    (item) => item.id === approval.runId,
-                  );
-                  return (
-                    <article className="sc-approval-card" key={approval.id}>
-                      <header>
-                        <span className="sc-approval-flag">Needs review</span>
-                        <span className="sc-approval-ttl" title={"Expires " + fullTime(approval.expiresAt)}>
-                          expires in {expiresIn(approval.expiresAt)}
-                        </span>
-                      </header>
-                      <h3>{run?.prompt ?? "Staged manifest"}</h3>
-                      <p>
-                        {agent?.name ?? "Agent"} staged{" "}
-                        {(run?.effects.length ?? 0) + (run?.externalEffects.length ?? 0)} effect(s)
-                        bound to digest
-                      </p>
-                      <div className="sc-approval-digest">
-                        <code>{short(approval.manifestDigest, 26)}</code>
-                        <CopyChip value={approval.manifestDigest} label="manifest digest" />
-                      </div>
-                      <footer>
-                        <button
-                          className="sc-button"
-                          onClick={() => setDrawer({ kind: "approval", approvalId: approval.id })}
-                        >
-                          Review changes
-                        </button>
-                        <button
-                          className="sc-button sc-button-danger"
-                          disabled={busy}
-                          onClick={() => void decideApproval(approval.id, "deny")}
-                        >
-                          Deny
-                        </button>
-                      </footer>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section>
-            <div className="sc-section-heading">
-              <h2>Decision history</h2>
-              <span>{decidedApprovals.length}</span>
-            </div>
-            {decidedApprovals.length === 0 ? (
-              <p className="sc-quiet">No decided approvals yet.</p>
-            ) : (
-              <div className="sc-history">
-                {decidedApprovals.map((approval) => {
-                  const agent = agentById.get(approval.agentId);
-                  const run = (runsByAgent[approval.agentId] ?? []).find(
-                    (item) => item.id === approval.runId,
-                  );
-                  return (
-                    <button
-                      className="sc-history-row"
-                      key={approval.id}
-                      onClick={() =>
-                        run && agent
-                          ? setScope({ kind: "run", agentId: agent.id, runId: run.id })
-                          : undefined
-                      }
-                    >
-                      <span className={"sc-history-status sc-history-" + approval.status}>
-                        {approval.status}
-                      </span>
-                      <div>
-                        <strong>{run?.prompt ?? short(approval.runId, 10)}</strong>
-                        <small>
-                          {agent?.name ?? "Agent"} · digest {short(approval.manifestDigest, 18)}
-                        </small>
-                      </div>
-                      <time title={fullTime(approval.decidedAt)}>
-                        {relativeTime(approval.decidedAt ?? approval.createdAt)}
-                      </time>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+      {tab === "architecture" && (
+        <div className="secx-architecture">
+          <header className="secx-page-header"><div><h2>Zero-trust middleware architecture</h2><p>Explore trust boundaries, the primary Run path and the controlled effect boundary.</p></div><button onClick={() => window.open("/diagrams/aeg-architecture.html", "_blank", "noopener,noreferrer")}>Open full screen</button></header>
+          <iframe src="/diagrams/aeg-architecture.html" title="Agent Effect Gateway architecture" />
         </div>
       )}
 
-      {/* ============ MODULES ============ */}
-      {tab === "modules" && (
-        <div className="sc-modules">
-          {overview.modules.map((module) => (
-            <article className={"sc-module sc-module-" + module.status} key={module.id}>
-              <header>
-                <span className={"sc-module-kind sc-module-kind-" + module.kind}>{module.kind}</span>
-                <span className={"sc-module-status sc-module-status-" + module.status}>
-                  <i />
-                  {module.status}
-                </span>
-              </header>
-              <h3>{module.name}</h3>
-              <p>{module.description}</p>
-              <div className="sc-module-tags">
-                {module.capabilities.map((capability) => (
-                  <span key={capability}>{capability}</span>
-                ))}
-              </div>
-              <footer>
-                <span className="sc-mono">{module.id}@{module.version}</span>
-                <strong>{module.events} events</strong>
-              </footer>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {/* ============ DRAWER ============ */}
-      {drawer && (
-        <div className="sc-drawer-backdrop" onMouseDown={() => setDrawer(null)}>
-          <aside className="sc-drawer" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="sc-drawer-close" onClick={() => setDrawer(null)} aria-label="Close">
-              ×
-            </button>
-
-            {drawer.kind === "event" && (
-              <>
-                <header className="sc-drawer-heading">
-                  <i className={"sc-node sc-node-" + eventTone(drawer.event)} />
-                  <div>
-                    <small>Event #{drawer.event.sequence} · {fullTime(drawer.event.createdAt)}</small>
-                    <h2>{eventTitle(drawer.event)}</h2>
-                  </div>
-                </header>
-                <p className="sc-drawer-reason">
-                  {drawer.event.reason ?? "No additional reason was recorded."}
-                </p>
-                <div className="sc-drawer-chips">
-                  <span className={"sc-decision sc-decision-" + eventTone(drawer.event)}>
-                    {decisionLabel(drawer.event.decision)}
-                  </span>
-                  {drawer.event.ruleId && <code className="sc-rule">{drawer.event.ruleId}</code>}
-                </div>
-                <dl className="sc-facts">
-                  <div><dt>Module</dt><dd>{drawer.event.moduleId ?? "audit-ledger"}</dd></div>
-                  <div><dt>Stage</dt><dd>{drawer.event.stage ?? "verify"}</dd></div>
-                  <div><dt>Human</dt><dd className="sc-mono">{short(drawer.event.humanId, 26)}</dd></div>
-                  <div><dt>Agent</dt><dd>{drawer.event.agentName ?? "Platform"}</dd></div>
-                  <div><dt>Run</dt><dd className="sc-mono">{short(drawer.event.runId, 22)}</dd></div>
-                  <div><dt>Effect</dt><dd className="sc-mono">{short(drawer.event.effectId, 22)}</dd></div>
-                </dl>
-                {drawer.event.payload && Object.keys(drawer.event.payload).length > 0 && (
-                  <div className="sc-drawer-block">
-                    <span>Redacted evidence</span>
-                    <pre>{JSON.stringify(drawer.event.payload, null, 2)}</pre>
-                  </div>
-                )}
-                <footer className="sc-drawer-footer">
-                  <span>
-                    HMAC {short(drawer.event.eventMac, 18)}
-                    <CopyChip value={drawer.event.eventMac} label="event MAC" />
-                  </span>
-                  <span className={overview.ledger.valid ? "sc-ok" : "sc-bad"}>
-                    chain {overview.ledger.valid ? "intact" : "broken"}
-                  </span>
-                </footer>
-              </>
-            )}
-
-            {drawer.kind === "approval" && (
-              <>
-                <header className="sc-drawer-heading">
-                  <i className="sc-node sc-node-warn" />
-                  <div>
-                    <small>Digest-bound approval</small>
-                    <h2>{approvalDetail?.run.prompt ?? "Loading staged manifest…"}</h2>
-                  </div>
-                </header>
-                {approvalDetail ? (
-                  <>
-                    <p className="sc-drawer-reason">
-                      Approving executes exactly this manifest. Any change to the staged content
-                      invalidates the digest and the approval.
-                    </p>
-                    <div className="sc-drawer-chips">
-                      <code className="sc-rule sc-mono">
-                        {short(approvalDetail.approval.manifestDigest, 30)}
-                      </code>
-                      <CopyChip value={approvalDetail.approval.manifestDigest} label="digest" />
-                      <span className="sc-approval-ttl">
-                        expires in {expiresIn(approvalDetail.approval.expiresAt)}
-                      </span>
-                    </div>
-                    <div className="sc-drawer-block">
-                      <span>Workspace while pending</span>
-                      <div className="sc-hash-proof">
-                        <code>{short(approvalDetail.run.workspaceHashBefore, 14)}</code>
-                        <b>→</b>
-                        <code>{short(approvalDetail.currentWorkspaceHash, 14)}</code>
-                        <strong>
-                          {approvalDetail.run.workspaceHashBefore ===
-                          approvalDetail.currentWorkspaceHash
-                            ? "unchanged"
-                            : "concurrent change!"}
-                        </strong>
-                      </div>
-                    </div>
-                    {approvalDetail.run.effects.map((effect) => {
-                      const preview = approvalDetail.previews.find(
-                        (item) => item.effectId === effect.id,
-                      );
-                      return (
-                        <div className="sc-drawer-effect" key={effect.id}>
-                          <div className="sc-drawer-effect-row">
-                            <span className="sc-effect-kind">{effect.type.split(".")[1]}</span>
-                            <code>{effect.resource}</code>
-                            <span className={"sc-decision sc-decision-warn"}>
-                              {decisionLabel(effect.decision)}
-                            </span>
-                          </div>
-                          {preview?.binary ? (
-                            <p className="sc-quiet">Binary or linked file · content hidden</p>
-                          ) : preview ? (
-                            <div className="sc-diff">
-                              {preview.before !== null && (
-                                <div className="sc-diff-before">
-                                  <span>before</span>
-                                  <pre>{preview.before || "(empty)"}</pre>
-                                </div>
-                              )}
-                              {preview.after !== null && (
-                                <div className="sc-diff-after">
-                                  <span>after</span>
-                                  <pre>{preview.after || "(empty)"}</pre>
-                                </div>
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                    {approvalDetail.run.externalEffects.map((effect) => (
-                      <div className="sc-drawer-effect" key={effect.id}>
-                        <div className="sc-drawer-effect-row">
-                          <span className="sc-effect-kind">{effect.method}</span>
-                          <code>{effect.url}</code>
-                          <span className="sc-decision sc-decision-warn">
-                            {decisionLabel(effect.decision)}
-                          </span>
-                        </div>
-                        {effect.bodyPreview && <pre className="sc-body-preview">{effect.bodyPreview}</pre>}
-                      </div>
-                    ))}
-                    <div className="sc-drawer-actions">
-                      <button
-                        className="sc-button sc-button-danger"
-                        disabled={busy}
-                        onClick={() => void decideApproval(drawer.approvalId, "deny")}
-                      >
-                        Deny & rollback
-                      </button>
-                      <button
-                        className="sc-button sc-button-primary"
-                        disabled={busy}
-                        onClick={() => void decideApproval(drawer.approvalId, "approve")}
-                      >
-                        Approve exact manifest
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <p className="sc-quiet">Loading staged diff…</p>
-                )}
-              </>
-            )}
-          </aside>
+      {approvalDetail && (
+        <div className="secx-modal-backdrop" onMouseDown={() => setApprovalDetail(null)}>
+          <article className="secx-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><span>Digest-bound approval</span><h2>{approvalDetail.run.prompt}</h2></div><button aria-label="Close" onClick={() => setApprovalDetail(null)}>×</button></header>
+            <div className="secx-modal-digest"><LockIcon size={15} /><code>{approvalDetail.approval.manifestDigest}</code><CopyControl value={approvalDetail.approval.manifestDigest} label="manifest digest" /></div>
+            <section className="secx-effect-review">
+              {approvalDetail.run.effects.map((effect) => {
+                const preview = approvalDetail.previews.find((item) => item.effectId === effect.id);
+                return <article key={effect.id}><header><FileDiffIcon size={15} /><strong>{effect.resource}</strong><span>{effect.type}</span></header>{preview && !preview.binary && <div className="secx-diff"><div><span>Before</span><pre>{preview.before || "(empty)"}</pre></div><div><span>After</span><pre>{preview.after || "(empty)"}</pre></div></div>}</article>;
+              })}
+              {approvalDetail.run.externalEffects.map((effect) => <article key={effect.id}><header><GlobeIcon size={15} /><strong>{effect.method} {effect.url}</strong><span>HTTP</span></header>{effect.bodyPreview && <pre className="secx-http-body">{effect.bodyPreview}</pre>}</article>)}
+            </section>
+            <footer><button className="secx-danger-button" disabled={busy} onClick={() => void decideApproval(approvalDetail.approval.id, "deny")}>Deny and restore</button><button className="secx-primary-button" disabled={busy} onClick={() => void decideApproval(approvalDetail.approval.id, "approve")}>Approve manifest</button></footer>
+          </article>
         </div>
       )}
     </section>
   );
+}
+
+function moduleIcon(module: SecurityModule, size = 17) {
+  if (module.kind === "identity") return <KeyIcon size={size} />;
+  if (module.kind === "runtime") return <ContainerIcon size={size} />;
+  if (module.kind === "effect") return <FileDiffIcon size={size} />;
+  if (module.kind === "approval") return <PersonIcon size={size} />;
+  return <DatabaseIcon size={size} />;
 }

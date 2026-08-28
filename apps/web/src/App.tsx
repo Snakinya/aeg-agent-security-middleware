@@ -525,7 +525,7 @@ export default function App() {
       </aside>
 
       <main className="main">
-        {!system?.arkConfigured || !system?.codexAvailable ? (
+        {activeView === "playground" && (!system?.arkConfigured || !system?.codexAvailable) ? (
           <div className="config-banner">
             <span>!</span>
             <div>
