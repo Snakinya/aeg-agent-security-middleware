@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AEG v3 Agent Security Middleware Runtime",
+    "subtitle": "Immutable transaction kernel, five checkpoints and tightening-only security modules",
+    "locale": "en",
+    "output": "aeg-v3-architecture.html",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "viewBox": [1390, 650],
+    "views": [
+      { "id": "run-path", "label": "Governed Run path", "focus": ["operator", "securityCenter", "kernel", "intake", "runtime", "sandbox", "review", "approval", "commit", "protectedState"], "note": "Follow one Run from Human delegation through staged execution to atomic commit or restore." },
+      { "id": "module-hooks", "label": "Module hooks", "focus": ["securityCenter", "moduleBus", "intake", "review", "approval", "ledger"], "note": "Configurable modules observe or tighten decisions at fixed kernel checkpoints." },
+      { "id": "identity-evidence", "label": "Identity and evidence", "focus": ["operator", "securityCenter", "kernel", "intake", "ledger"], "note": "Every event carries Human, Agent principal and Run capability attribution into an HMAC ledger." },
+      { "id": "trust-boundary", "label": "Trust boundary", "focus": ["runtime", "sandbox", "review", "commit", "protectedState"], "note": "The untrusted Runtime sees staging and outbox copies; only the kernel can persist effects." }
+    ],
+    "legend": { "mode": "hidden" }
+  },
+  "components": [
+    { "id": "operator", "type": "external", "label": "Human operator", "sublabel": "security_admin / approver", "pos": [45, 110], "size": [145, 66] },
+    { "id": "securityCenter", "type": "frontend", "label": "Security Center", "sublabel": "Policies · Modules · Activity", "tag": "Launchpad UI", "pos": [45, 290], "size": [175, 76] },
+    { "id": "kernel", "type": "security", "label": "Transaction kernel", "sublabel": "staging · digest · atomic commit", "tag": "immutable", "pos": [285, 285], "size": [190, 82] },
+    { "id": "intake", "type": "security", "label": "1 · Intake", "sublabel": "delegation + analyzers", "pos": [535, 285], "size": [150, 72] },
+    { "id": "runtime", "type": "backend", "label": "2 · Runtime", "sublabel": "disposable workspace", "pos": [745, 285], "size": [150, 72] },
+    { "id": "sandbox", "type": "external", "label": "Codex Runtime", "sublabel": "staging copy + outbox", "tag": "untrusted", "pos": [737.5, 400], "size": [165, 76] },
+    { "id": "review", "type": "security", "label": "3 · Effect review", "sublabel": "platform diff + strictest wins", "pos": [970, 285], "size": [175, 72] },
+    { "id": "approval", "type": "security", "label": "4 · Approval", "sublabel": "digest + policy version + TTL", "pos": [1170, 285], "size": [170, 72] },
+    { "id": "commit", "type": "security", "label": "5 · Commit / restore", "sublabel": "kernel-exclusive execution", "pos": [1165, 400], "size": [180, 76] },
+    { "id": "protectedState", "type": "database", "label": "Protected state", "sublabel": "workspace + declared HTTP", "pos": [1165, 540], "size": [180, 72] },
+    { "id": "moduleBus", "type": "messagebus", "label": "Tightening-only module bus", "sublabel": "Policy Profile · SingGuard · secret scan · evidence", "tag": "hot configurable", "pos": [535, 80], "size": [365, 82] },
+    { "id": "ledger", "type": "database", "label": "HMAC event ledger", "sublabel": "redacted · append-only · verifiable", "pos": [930, 540], "size": [200, 76] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Trusted control plane", "wraps": ["securityCenter", "kernel", "intake", "runtime", "review", "approval", "commit", "moduleBus", "ledger"], "pad": 22 },
+    { "kind": "security-group", "label": "Untrusted execution domain", "wraps": ["sandbox"], "pad": 18 }
+  ],
+  "connections": [
+    { "id": "operator-ui", "from": "operator", "to": "securityCenter", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "ui-kernel", "from": "securityCenter", "to": "kernel", "variant": "security" },
+    { "id": "kernel-intake", "from": "kernel", "to": "intake", "variant": "emphasis" },
+    { "id": "intake-runtime", "from": "intake", "to": "runtime", "variant": "emphasis" },
+    { "id": "runtime-sandbox", "from": "runtime", "to": "sandbox", "fromSide": "bottom", "toSide": "top", "variant": "dashed" },
+    { "id": "sandbox-review", "from": "sandbox", "to": "review", "variant": "security" },
+    { "id": "review-approval", "from": "review", "to": "approval", "variant": "emphasis" },
+    { "id": "approval-commit", "from": "approval", "to": "commit", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+    { "id": "commit-state", "from": "commit", "to": "protectedState", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "ui-modules", "from": "securityCenter", "to": "moduleBus", "label": "versioned configuration", "labelAt": [430, 220], "variant": "dashed", "fromSide": "top", "toSide": "bottom", "via": [[132.5, 235], [717.5, 235], [717.5, 180]] },
+    { "id": "modules-intake", "from": "moduleBus", "to": "intake", "label": "onIntake", "labelDx": -54, "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "modules-review", "from": "moduleBus", "to": "review", "label": "reviewEffect", "labelAt": [1020, 190], "variant": "dashed", "fromSide": "right", "toSide": "top", "via": [[930, 121], [1057.5, 121], [1057.5, 250]] },
+    { "id": "review-ledger", "from": "review", "to": "ledger", "label": "signed evidence", "labelDx": 78, "variant": "security", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Mechanism kernel", "items": ["Modules cannot commit or relax a decision", "Hard-deny remains kernel-bound", "Unapproved staging is always recoverable"] },
+    { "dot": "amber", "title": "Configurable modules", "items": ["Per-Agent Policy Profiles", "Local SingGuard and secret analyzers", "Declared HTTP gateway", "Optional L3 egress adapter reports degraded"] },
+    { "dot": "emerald", "title": "Operational evidence", "items": ["Human, Agent and Run attribution", "Module badge on every decision", "Configuration changes invalidate pending approvals"] }
+  ]
+}

@@ -2,7 +2,7 @@
   "name": "volc-agent-launchpad",
   "version": "1.0.0",
   "private": true,
-  "description": "A middleware-free Agent platform starter kit running Codex CLI locally or on Volcengine ECS.",
+  "description": "An Agent platform extended with the transactional Agent Effect Gateway security middleware.",
   "type": "module",
   "workspaces": [
     "apps/*"
@@ -17,6 +17,7 @@
     "test": "npm run test -w @launchpad/server",
     "check": "npm run typecheck && npm run test && npm run build",
     "demo:mock": "node scripts/mock-ticket-service.mjs",
+    "guardrail:singguard": "./scripts/start-singguard.sh",
     "poc": "./scripts/start-local-poc.sh",
     "start": "npm run start -w @launchpad/server"
   },

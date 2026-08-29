@@ -254,6 +254,11 @@ async function readResponse(
 export class ExternalEffectGateway {
   constructor(private readonly config: AppConfig) {}
 
+  async simulate(method: ExternalHttpEffect["method"], url: string): Promise<ExternalHttpEffect> {
+    const request = normalizeRequest(requestSchema.parse({ method, url }));
+    return this.evaluate("policy-simulation", request);
+  }
+
   async collect(runId: string, stagedWorkspacePath: string): Promise<ExternalEffectPlan> {
     const outboxPath = path.join(stagedWorkspacePath, ...EXTERNAL_EFFECT_OUTBOX.split("/"));
     let raw: string;

@@ -6,7 +6,9 @@ Codex-session integrity, plus external HTTP actions declared through AEG. A
 typed module registry, Run-scoped delegation, and one security-event contract
 make the enforcement and evidence planes independently extensible.
 
-![One-page AEG architecture](AEG_ARCHITECTURE.svg)
+Open the [interactive one-page AEG v3 architecture](../apps/web/public/diagrams/aeg-architecture.html)
+for the submission diagram, trace animation, light/dark themes and export. Its
+validated Archify source is [diagrams/aeg-v3-architecture.json](diagrams/aeg-v3-architecture.json).
 
 ## Trust boundary and data flow
 
@@ -65,9 +67,15 @@ Runtime trace is untrusted evidence. Enforcement uses hashes and filesystem
 facts measured by the control plane. External requests are canonicalized from a
 reserved outbox; the trusted executor sends them only after policy and approval.
 
-## Run protocol
+## Five-checkpoint protocol
 
 ```text
+Intake
+  → Runtime
+  → Effect Review
+      → Approval
+  → Execute / Commit
+
 queued
   → running
   → reviewing_effects
@@ -88,7 +96,8 @@ Every Run follows this protocol:
    HTTP Effect containing the method, URL, header names, body hash and digest.
 6. Reject a Run that mixes ordinary file changes with an external request. This
    avoids claiming atomicity across a filesystem and a remote service.
-7. Apply built-in policy and every active module contribution. Extensions may
+7. Apply built-in policy and every active module contribution. Intake analyzers
+   have already recorded allow, review, deny or degraded evidence. Extensions may
    tighten a decision but cannot relax an earlier decision. Any deny rolls back
    the complete manifest; any review decision pauses it.
 8. Bind approval to the combined manifest digest, policy version, TTL, and real
@@ -117,6 +126,10 @@ Every Run follows this protocol:
 | Codex Runtime | Untrusted | Reason, execute commands and modify disposable state |
 | Trace collector | Untrusted input | Parse Runtime events; compare file claims with measured effects |
 | Security ledger | Trusted evidence | Append HMAC-linked, redacted decisions and lifecycle events |
+
+The built-in `guardrail-model` adapter supports local SingGuard-NSFA or an Ark
+classifier endpoint. It is a probabilistic Intake signal; a classifier outage is
+recorded as module degradation while deterministic kernel controls remain active.
 
 ## Persistent layout
 

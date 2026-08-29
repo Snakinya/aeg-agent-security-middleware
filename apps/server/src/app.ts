@@ -7,10 +7,12 @@ import { z } from "zod";
 import type { AppConfig } from "./config.js";
 import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
+import type { PolicyProfile } from "./types.js";
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const approvalIdParams = z.object({ approvalId: z.string().uuid() });
+const moduleIdParams = z.object({ moduleId: z.string().trim().min(1).max(80) });
 const approvalQuery = z.object({
   status: z.enum(["pending", "approved", "denied", "expired"]).optional(),
 });
@@ -34,6 +36,44 @@ const securityEventQuery = z.object({
   decision: z.string().trim().min(1).max(40).optional(),
   limit: z.coerce.number().int().min(1).max(1_000).optional(),
 });
+const policyProfileBody = z.object({
+  version: z.number().int().positive(),
+  template: z.enum(["relaxed", "balanced", "strict", "custom"]),
+  fileRules: z.object({
+    autoAllow: z.array(z.string().trim().min(1).max(240)).max(100),
+    requireApproval: z.array(z.string().trim().min(1).max(240)).max(100),
+    deny: z.array(z.string().trim().min(1).max(240)).max(100),
+  }),
+  external: z.object({
+    allowHosts: z.array(z.string().trim().min(1).max(253)).max(100),
+    requireApprovalMethods: z.array(z.enum(["POST", "PUT", "PATCH"])),
+  }),
+  egress: z.object({ allow: z.array(z.string().trim().min(1).max(500)).max(100) }),
+  approval: z.object({ ttlMinutes: z.number().min(1).max(60) }),
+  analyzers: z.object({
+    "guardrail-model": z.object({
+      enabled: z.boolean(),
+      denyThreshold: z.number().min(0).max(1),
+      reviewThreshold: z.number().min(0).max(1),
+    }),
+    "secret-scanner": z.object({
+      enabled: z.boolean(),
+      action: z.enum(["deny", "require_approval"]),
+    }),
+  }),
+  updatedAt: z.string(),
+});
+const policyTemplateBody = z.object({ template: z.enum(["relaxed", "balanced", "strict"]) });
+const policySimulationBody = z.object({
+  kind: z.enum(["file", "http"]),
+  resource: z.string().trim().min(1).max(4_000),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).optional(),
+  profile: z.unknown().optional(),
+});
+const moduleConfigurationBody = z.object({
+  enabled: z.boolean().optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+}).refine((value) => value.enabled !== undefined || value.config !== undefined, "No module change supplied");
 
 export async function createApp(
   config: AppConfig,
@@ -128,6 +168,35 @@ export async function createApp(
     return { runs: service.getRuns(id) };
   });
 
+  app.get("/api/agents/:id/policy", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    return service.policyProfile(id);
+  });
+
+  app.put("/api/agents/:id/policy", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    const body = policyProfileBody.parse(request.body) as PolicyProfile;
+    return service.updatePolicyProfile(id, body);
+  });
+
+  app.post("/api/agents/:id/policy/template", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    const { template } = policyTemplateBody.parse(request.body);
+    return service.applyPolicyTemplate(id, template);
+  });
+
+  app.post("/api/agents/:id/policy/simulate", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    const body = policySimulationBody.parse(request.body);
+    const profile = body.profile === undefined
+      ? undefined
+      : policyProfileBody.parse(body.profile) as PolicyProfile;
+    const input = body.kind === "file"
+      ? { kind: "file" as const, resource: body.resource }
+      : { kind: "http" as const, resource: body.resource, method: body.method ?? "GET" };
+    return { result: await service.simulateAgentPolicy(id, input, profile) };
+  });
+
   app.post("/api/agents/:id/messages", async (request, reply) => {
     const { id } = agentIdParams.parse(request.params);
     const body = messageBody.parse(request.body);
@@ -165,6 +234,17 @@ export async function createApp(
   app.get("/api/identity", async () => service.identityInfo());
 
   app.get("/api/security/overview", async () => service.securityOverview());
+
+  app.get("/api/security/modules", async () => ({ modules: await service.securityModules() }));
+
+  app.patch("/api/security/modules/:moduleId", async (request) => {
+    const { moduleId } = moduleIdParams.parse(request.params);
+    const body = moduleConfigurationBody.parse(request.body);
+    return service.configureSecurityModule(moduleId, {
+      ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+      ...(body.config !== undefined ? { config: body.config } : {}),
+    });
+  });
 
   app.get("/api/security/events", async (request) => {
     const query = securityEventQuery.parse(request.query);

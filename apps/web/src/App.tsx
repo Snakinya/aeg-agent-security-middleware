@@ -890,7 +890,7 @@ export default function App() {
                     <div className="security-note-copy">
                       <strong>
                         {activeRun.status === "rolled_back"
-                          ? "Blocked by AEG — workspace " +
+                          ? "Blocked by AEG: workspace " +
                             (activeRun.workspaceHashBefore === activeRun.workspaceHashAfter
                               ? "restored exactly"
                               : "rolled back")
@@ -902,7 +902,7 @@ export default function App() {
                               (activeRun.externalEffects.length > 0
                                 ? " · " + activeRun.externalEffects.length + " external action"
                                 : "")
-                            : "Staging discarded — no protected state changed"}
+                            : "Staging discarded; no protected state changed"}
                       </strong>
                       <small>{activeRun.securitySummary ?? "Reviewed by deterministic policy"}</small>
                     </div>

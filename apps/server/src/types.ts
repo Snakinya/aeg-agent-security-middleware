@@ -13,6 +13,47 @@ export type RunStatus =
 export type MessageRole = "user" | "assistant";
 export type EffectDecision = "allow" | "require_approval" | "deny";
 export type ApprovalStatus = "pending" | "approved" | "denied" | "expired";
+export type PolicyTemplate = "relaxed" | "balanced" | "strict" | "custom";
+
+export interface PolicyProfile {
+  version: number;
+  template: PolicyTemplate;
+  fileRules: {
+    autoAllow: string[];
+    requireApproval: string[];
+    deny: string[];
+  };
+  external: {
+    allowHosts: string[];
+    requireApprovalMethods: Array<"POST" | "PUT" | "PATCH">;
+  };
+  egress: {
+    allow: string[];
+  };
+  approval: {
+    ttlMinutes: number;
+  };
+  analyzers: {
+    "guardrail-model": {
+      enabled: boolean;
+      denyThreshold: number;
+      reviewThreshold: number;
+    };
+    "secret-scanner": {
+      enabled: boolean;
+      action: "deny" | "require_approval";
+    };
+  };
+  updatedAt: string;
+}
+
+export interface SecurityModuleConfiguration {
+  moduleId: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  revision: number;
+  updatedAt: string;
+}
 
 export interface HumanPrincipal {
   id: string;
@@ -30,6 +71,14 @@ export interface RunSecurityContext {
   agentPrincipalId: string;
   scopes: string[];
   policyProfile: string;
+  intakeDecision: EffectDecision;
+  intakeSignals: Array<{
+    moduleId: string;
+    decision: EffectDecision;
+    ruleId: string;
+    reason: string;
+    score?: number;
+  }>;
   issuedAt: string;
   expiresAt: string;
   revokedAt: string | null;
@@ -107,6 +156,7 @@ export interface Approval {
   agentId: string;
   runId: string;
   status: ApprovalStatus;
+  scope: "intake" | "manifest";
   manifestDigest: string;
   policyVersion: string;
   expiresAt: string;
@@ -124,6 +174,7 @@ export interface Agent {
   ownerHumanId: string;
   principalId: string;
   principalStatus: "active" | "revoked";
+  policyProfile: PolicyProfile;
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
@@ -171,13 +222,14 @@ export interface AgentRun {
 }
 
 export interface Database {
-  version: 4;
+  version: 5;
   humans: HumanPrincipal[];
   runSecurityContexts: RunSecurityContext[];
   agents: Agent[];
   messages: Message[];
   runs: AgentRun[];
   approvals: Approval[];
+  securityModuleConfigurations: SecurityModuleConfiguration[];
 }
 
 export interface CreateAgentInput {

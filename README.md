@@ -38,9 +38,11 @@ Volcengine ECS.
 - Protected external HTTP actions with host allowlist, SSRF/data checks,
   digest-bound approval, deterministic idempotency keys, and response receipts
 - Per-Agent principals and time-limited Run capabilities derived by the control plane
-- Explicit security-module registry with most-restrictive policy extension hooks
-- Dedicated Security Center with correlated Identity, Runtime, Policy, Approval,
-  Effect, Recovery, and Evidence lanes
+- Versioned per-Agent policy profiles with relaxed, balanced, and strict templates
+- Configurable security-module registry with locked kernel modules, health state,
+  schema-generated controls, and most-restrictive policy hooks
+- Dedicated six-page Security Center for posture, correlated Agent/Session/Run
+  activity, approvals, policy simulation, module configuration, and architecture
 - Queryable Runtime trace plus HMAC-chained security evidence
 - Docker and Terraform deployment paths for Volcengine ECS
 
@@ -142,6 +144,27 @@ The Run pauses before the `POST`. The approval card displays the canonical URL,
 body preview, rule and request digest. After approval, AEG sends the request and
 shows the HTTP status and response hash. Keep private-network access disabled
 outside this loopback demonstration.
+
+### Local SingGuard-NSFA analyzer
+
+AEG can run the official SingGuard-NSFA 0.8B GGUF model locally as an Intake
+analyzer. On Apple Silicon, install llama.cpp and download the Q4_K_M model:
+
+```bash
+brew install llama.cpp
+mkdir -p ~/.volc-agent-launchpad/models/singguard-nsfa
+curl -L --fail \
+  --output ~/.volc-agent-launchpad/models/singguard-nsfa/Sing-Guard-0.8B-Q4_K_M.gguf \
+  https://huggingface.co/inclusionAI/SingGuard-NSFA-0.8B-GGUF/resolve/main/Sing-Guard-0.8B-Q4_K_M.gguf
+npm run guardrail:singguard
+```
+
+The local OpenAI-compatible endpoint listens on `127.0.0.1:18080`. In Security
+Center → Modules → Guardrail Model, select `singguard`, leave endpoint and model
+empty to use the environment defaults, and save. Enable Guardrail Model in the
+Agent's Policy Profile. SingGuard receives XML-escaped text inside the official
+`<untrusted_input>` boundary and returns NSFA risk tags; raw reasoning is not
+stored in the security ledger.
 
 ### 5. Stop and resume
 
@@ -246,6 +269,8 @@ cp deploy/volcengine/terraform.tfvars.example \
 | `ARK_API_KEY` | Required | Ark model API key. |
 | `ARK_MODEL` | Required | Responses-capable endpoint or model ID. |
 | `ARK_BASE_URL` | Beijing v3 endpoint | Ark OpenAI-compatible API URL. |
+| `SINGGUARD_BASE_URL` | `http://127.0.0.1:18080/v1` | Optional local SingGuard-NSFA endpoint. |
+| `SINGGUARD_MODEL` | `singguard-nsfa-0.8b` | Model alias exposed by llama.cpp. |
 | `APP_AUTH_TOKEN` | Empty on loopback | Shared demo token; use 24+ random characters remotely. |
 | `AUDIT_HMAC_KEY` | Generated locally | Optional 32+ character audit-chain key. |
 | `AEG_HTTP_ALLOWLIST` | Empty | Comma-separated exact hosts or `*.example.com` for P1. |
@@ -258,6 +283,19 @@ cp deploy/volcengine/terraform.tfvars.example \
 | `LOCAL_POC_DATA_ROOT` | Platform-specific | Local metadata, workspace, and session directory. |
 
 See [.env.example](.env.example) for all Runtime and resource-limit options.
+
+Policy and module configuration can also be managed through the Security Center.
+Every change is recorded in the signed ledger. A policy version change expires
+pending approvals bound to the previous version.
+
+```http
+GET   /api/agents/:agentId/policy
+PUT   /api/agents/:agentId/policy
+POST  /api/agents/:agentId/policy/template
+POST  /api/agents/:agentId/policy/simulate
+GET   /api/security/modules
+PATCH /api/security/modules/:moduleId
+```
 
 ## How it works
 
@@ -296,14 +334,18 @@ docker compose config
 
 ## Documentation
 
+- [Hackathon submission guide](docs/SUBMISSION.md)
+- [Reproducible demo casebook](docs/CASEBOOK.md)
+- [Three-minute recording script](docs/DEMO.md)
+- [Validation evidence](docs/VALIDATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Interactive one-page architecture](apps/web/public/diagrams/aeg-architecture.html)
 - [Local POC](docs/LOCAL_POC.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Hackathon extension guide](docs/HACKATHON_EXTENSION_GUIDE.md)
 - [Security policy](SECURITY.md)
 - [Agent Effect Gateway design and demo](docs/AEG_SECURITY.md)
 - [Security module integration](docs/SECURITY_MODULES.md)
-- [Three-minute demo script](docs/DEMO.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License

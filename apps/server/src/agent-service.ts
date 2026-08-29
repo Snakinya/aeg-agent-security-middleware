@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { AppConfig } from "./config.js";
 import { isArkConfigured } from "./config.js";
 import { EffectGateway, isIgnoredResource, type StagedRun } from "./effect-gateway.js";
@@ -11,6 +11,13 @@ import {
 } from "./external-effect-gateway.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { redactSecurityText } from "./redaction.js";
+import {
+  defaultPolicyProfile,
+  HARD_DENY_RULES,
+  normalizePolicyProfile,
+  policyTemplate,
+  simulatePolicy,
+} from "./policy-profile.js";
 import {
   agentPrincipalId,
   issueRunSecurityContext,
@@ -31,11 +38,14 @@ import type {
   Approval,
   CreateAgentInput,
   Message,
+  PolicyProfile,
+  PolicyTemplate,
   UpdateAgentInput,
 } from "./types.js";
 import { WorkspaceManager } from "./workspace.js";
 
 const now = () => new Date().toISOString();
+const decisionRank = { allow: 0, require_approval: 1, deny: 2 } as const;
 
 export class AgentService {
   private readonly activeExecutions = new Map<string, Promise<void>>();
@@ -58,6 +68,11 @@ export class AgentService {
 
   async initialize(): Promise<void> {
     await this.store.initialize();
+    const storedModuleConfigurations = this.store.snapshot().securityModuleConfigurations;
+    this.modules.load(storedModuleConfigurations);
+    await this.store.mutate((database) => {
+      database.securityModuleConfigurations = this.modules.configurations();
+    });
     await this.workspaces.initialize();
     await this.security.initialize();
     await this.security.cleanupAllStaging();
@@ -155,6 +170,7 @@ export class AgentService {
       ownerHumanId: LOCAL_OPERATOR_ID,
       principalId: agentPrincipalId(id),
       principalStatus: "active",
+      policyProfile: defaultPolicyProfile(this.config.httpEffectAllowlist),
       workspacePath: this.workspaces.workspacePath(id),
       codexThreadId: null,
       lastError: null,
@@ -289,7 +305,7 @@ export class AgentService {
     const agent = this.getAgent(approval.agentId);
     const staged = this.security.pathsFor(run.id);
     const previews =
-      approval.status === "pending"
+      approval.status === "pending" && approval.scope === "manifest"
         ? await this.security.createEffectPreviews(
             agent.workspacePath,
             staged.workspacePath,
@@ -315,6 +331,149 @@ export class AgentService {
         status: agent.principalStatus,
       })),
     };
+  }
+
+  policyProfile(agentId: string) {
+    const agent = this.getAgent(agentId);
+    return {
+      profile: agent.policyProfile,
+      templates: {
+        relaxed: policyTemplate("relaxed", this.config.httpEffectAllowlist),
+        balanced: policyTemplate("balanced", this.config.httpEffectAllowlist),
+        strict: policyTemplate("strict", this.config.httpEffectAllowlist),
+      },
+      hardDenyRules: HARD_DENY_RULES,
+      pendingApprovals: this.store.snapshot().approvals.filter(
+        (approval) => approval.agentId === agentId && approval.status === "pending",
+      ).length,
+    };
+  }
+
+  async updatePolicyProfile(agentId: string, input: PolicyProfile) {
+    const current = this.getAgent(agentId);
+    const profile = normalizePolicyProfile(
+      { ...input, template: "custom" },
+      current.policyProfile.version + 1,
+    );
+    await this.store.mutate((database) => {
+      const agent = database.agents.find((item) => item.id === agentId);
+      if (!agent) throw new HttpError(404, "Agent not found");
+      agent.policyProfile = profile;
+      agent.updatedAt = now();
+    });
+    const invalidatedApprovals = await this.invalidateApprovals(
+      (approval) => approval.agentId === agentId,
+      "Agent policy profile changed while approval was pending",
+    );
+    await this.publishSecurityEvent({
+      type: "policy.updated",
+      moduleId: "policy-profile",
+      stage: "policy",
+      severity: "medium",
+      agentId,
+      decision: "configured",
+      reason: `Policy profile changed from v${current.policyProfile.version} to v${profile.version}`,
+      payload: {
+        template: profile.template,
+        invalidatedApprovals,
+        previousVersion: current.policyProfile.version,
+        version: profile.version,
+      },
+    });
+    return { profile, invalidatedApprovals };
+  }
+
+  async applyPolicyTemplate(agentId: string, template: Exclude<PolicyTemplate, "custom">) {
+    const current = this.getAgent(agentId);
+    const profile = normalizePolicyProfile(
+      policyTemplate(template, this.config.httpEffectAllowlist),
+      current.policyProfile.version + 1,
+    );
+    await this.store.mutate((database) => {
+      const agent = database.agents.find((item) => item.id === agentId);
+      if (!agent) throw new HttpError(404, "Agent not found");
+      agent.policyProfile = profile;
+      agent.updatedAt = now();
+    });
+    const invalidatedApprovals = await this.invalidateApprovals(
+      (approval) => approval.agentId === agentId,
+      "Agent policy template changed while approval was pending",
+    );
+    await this.publishSecurityEvent({
+      type: "policy.template_applied",
+      moduleId: "policy-profile",
+      stage: "policy",
+      severity: "medium",
+      agentId,
+      decision: "configured",
+      reason: `${template} policy template applied as v${profile.version}`,
+      payload: { template, version: profile.version, invalidatedApprovals },
+    });
+    return { profile, invalidatedApprovals };
+  }
+
+  async simulateAgentPolicy(
+    agentId: string,
+    input: { kind: "file"; resource: string } | { kind: "http"; resource: string; method: string },
+    draft?: PolicyProfile,
+  ) {
+    const profile = draft
+      ? normalizePolicyProfile(draft, this.getAgent(agentId).policyProfile.version)
+      : this.getAgent(agentId).policyProfile;
+    const profileResult = simulatePolicy(profile, input);
+    if (input.kind === "file" || profileResult.locked) return profileResult;
+    const platformResult = await this.externalSecurity.simulate(
+      input.method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+      input.resource,
+    );
+    if (decisionRank[platformResult.decision] >= decisionRank[profileResult.decision]) {
+      return {
+        decision: platformResult.decision,
+        moduleId: "external-http",
+        ruleId: platformResult.ruleId,
+        reason: platformResult.reason,
+        matchedRule: platformResult.decision === "deny" ? null : new URL(platformResult.url).hostname,
+        locked: true,
+      };
+    }
+    return profileResult;
+  }
+
+  async securityModules() {
+    const events = await this.security.ledger.list({ limit: 1_000 });
+    return this.modules.list().map((module) => ({
+      ...module,
+      recentEvents: events.filter((event) => event.moduleId === module.id).slice(0, 3),
+    }));
+  }
+
+  async configureSecurityModule(
+    moduleId: string,
+    input: { enabled?: boolean; config?: Record<string, unknown> },
+  ) {
+    let module;
+    try {
+      module = this.modules.configure(moduleId, input);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+    await this.store.mutate((database) => {
+      database.securityModuleConfigurations = this.modules.configurations();
+    });
+    const invalidatedApprovals = await this.invalidateApprovals(
+      () => true,
+      `Security module ${moduleId} changed while approval was pending`,
+    );
+    await this.publishSecurityEvent({
+      type: "module.configured",
+      moduleId,
+      stage: "policy",
+      severity: "medium",
+      decision: module.enabled ? "enabled" : "disabled",
+      reason: `${module.name} configuration revision ${module.revision} is active`,
+      payload: { enabled: module.enabled, revision: module.revision, invalidatedApprovals },
+    });
+    return { module, invalidatedApprovals };
   }
 
   async securityEvents(query: SecurityEventQuery = {}) {
@@ -389,6 +548,42 @@ export class AgentService {
     if (run.status !== "awaiting_approval") {
       throw new HttpError(409, "Run is not awaiting approval");
     }
+    if (approval.scope === "intake") {
+      const intakeDigest = createHash("sha256")
+        .update(run.prompt + ":" + securityContext.id)
+        .digest("hex");
+      if (
+        intakeDigest !== approval.manifestDigest ||
+        approval.policyVersion !== this.modules.policyVersion(agent.policyProfile)
+      ) {
+        await this.expireApproval(approvalId, "Intake policy changed after approval was requested");
+        throw new HttpError(409, "Intake approval binding failed");
+      }
+      await this.store.mutate((database) => {
+        const storedApproval = database.approvals.find((item) => item.id === approvalId);
+        const storedRun = database.runs.find((item) => item.id === run.id);
+        if (!storedApproval || storedApproval.status !== "pending" || !storedRun) {
+          throw new HttpError(409, "Approval changed concurrently");
+        }
+        storedApproval.status = "approved";
+        storedApproval.decidedAt = now();
+        storedApproval.approvedBy = securityContext.humanId;
+        storedRun.status = "queued";
+      });
+      await this.publishSecurityEvent({
+        type: "approval.approved",
+        moduleId: "approval-manager",
+        stage: "approval",
+        severity: "medium",
+        agentId: agent.id,
+        runId: run.id,
+        decision: "approved",
+        reason: "Human approved the digest-bound Intake decision",
+        payload: { approvalId, scope: "intake", manifestDigest: approval.manifestDigest },
+      });
+      this.beginExecution(agent, this.getRun(run.id));
+      return { approval: this.getApproval(approvalId), run: this.getRun(run.id) };
+    }
     const staged = this.security.pathsFor(run.id);
     const manifest = await this.collectSecuredManifest(
       run.id,
@@ -397,7 +592,7 @@ export class AgentService {
     );
     if (
       manifest.manifestDigest !== approval.manifestDigest ||
-      approval.policyVersion !== this.modules.policyVersion()
+      approval.policyVersion !== this.modules.policyVersion(agent.policyProfile)
     ) {
       await this.expireApproval(
         approvalId,
@@ -495,6 +690,16 @@ export class AgentService {
       runId,
       this.config.codexTimeoutMs + 15 * 60_000 + 60_000,
     );
+    const intakeSignals = await this.modules.onIntake(prompt, {
+      ...securityContext,
+      profile: agentForContext.policyProfile,
+    });
+    const intakeDecision = intakeSignals.reduce<"allow" | "require_approval" | "deny">(
+      (current, signal) => decisionRank[signal.decision] > decisionRank[current] ? signal.decision : current,
+      "allow",
+    );
+    securityContext.intakeDecision = intakeDecision;
+    securityContext.intakeSignals = intakeSignals.map(({ moduleId, ...signal }) => ({ moduleId, ...signal }));
     const run: AgentRun = {
       id: runId,
       agentId,
@@ -564,15 +769,80 @@ export class AgentService {
         expiresAt: securityContext.expiresAt,
       },
     });
-    const execution = this.executeRun(agentAtStart, { ...run, prompt });
-    this.activeExecutions.set(agentId, execution);
-    void execution
-      .finally(() => {
-        if (this.activeExecutions.get(agentId) === execution) {
-          this.activeExecutions.delete(agentId);
-        }
-      })
-      .catch(() => undefined);
+    if (intakeSignals.length === 0) {
+      await this.publishSecurityEvent({
+        type: "intake.accepted",
+        moduleId: "secret-scanner",
+        stage: "observe",
+        severity: "info",
+        agentId,
+        runId,
+        decision: "allow",
+        reason: "Intake analyzers found no signal requiring stricter handling",
+      });
+    }
+    for (const signal of intakeSignals) {
+      await this.publishSecurityEvent({
+        type: "intake.reviewed",
+        moduleId: signal.moduleId,
+        stage: "observe",
+        severity: signal.decision === "deny" ? "high" : signal.decision === "require_approval" ? "medium" : "info",
+        agentId,
+        runId,
+        decision: signal.decision,
+        ruleId: signal.ruleId,
+        reason: signal.reason,
+        payload: { score: signal.score ?? null },
+      });
+    }
+    if (intakeDecision === "deny") {
+      await this.finishRolledBack(run.id, "Intake analyzers denied execution before Runtime access");
+      return { run: this.getRun(run.id), message };
+    }
+    if (intakeDecision === "require_approval") {
+      const manifestDigest = createHash("sha256").update(safePrompt + ":" + securityContext.id).digest("hex");
+      const approval: Approval = {
+        id: randomUUID(),
+        agentId,
+        runId,
+        status: "pending",
+        scope: "intake",
+        manifestDigest,
+        policyVersion: this.modules.policyVersion(agentAtStart.policyProfile),
+        expiresAt: new Date(Date.now() + agentAtStart.policyProfile.approval.ttlMinutes * 60_000).toISOString(),
+        decidedAt: null,
+        approvedBy: null,
+        createdAt: now(),
+      };
+      await this.store.mutate((database) => {
+        const storedRun = database.runs.find((item) => item.id === run.id);
+        if (!storedRun) return;
+        storedRun.status = "awaiting_approval";
+        storedRun.approvalId = approval.id;
+        storedRun.manifestDigest = manifestDigest;
+        storedRun.policyVersion = approval.policyVersion;
+        storedRun.securitySummary = "Intake risk is bound to a pending human approval";
+        database.approvals.push(approval);
+      });
+      await this.publishSecurityEvent({
+        type: "approval.requested",
+        moduleId: "approval-manager",
+        stage: "approval",
+        severity: "medium",
+        agentId,
+        runId,
+        decision: "require_approval",
+        reason: "Intake analyzer requested human inspection before Runtime execution",
+        payload: { approvalId: approval.id, scope: "intake", manifestDigest, expiresAt: approval.expiresAt },
+      });
+      const timer = setTimeout(
+        () => void this.expireApproval(approval.id, "Intake approval TTL elapsed"),
+        agentAtStart.policyProfile.approval.ttlMinutes * 60_000,
+      );
+      timer.unref();
+      return { run: this.getRun(run.id), message };
+    }
+    this.beginExecution(agentAtStart, { ...run, prompt });
     return { run, message };
   }
 
@@ -595,6 +865,14 @@ export class AgentService {
       externalHttpGatewayEnabled: this.config.httpEffectAllowlist.length > 0,
       externalHttpAllowlist: this.config.httpEffectAllowlist,
     };
+  }
+
+  private beginExecution(agent: Agent, run: AgentRun): void {
+    const execution = this.executeRun(agent, run);
+    this.activeExecutions.set(agent.id, execution);
+    void execution.finally(() => {
+      if (this.activeExecutions.get(agent.id) === execution) this.activeExecutions.delete(agent.id);
+    }).catch(() => undefined);
   }
 
   private async executeRun(agentAtStart: Agent, run: AgentRun): Promise<void> {
@@ -687,7 +965,8 @@ export class AgentService {
         agentAtStart.workspacePath,
         staged.workspacePath,
       );
-      const policyVersion = this.modules.policyVersion();
+      const currentProfile = this.getAgent(agentAtStart.id).policyProfile;
+      const policyVersion = this.modules.policyVersion(currentProfile);
       await this.store.mutate((database) => {
         const storedRun = database.runs.find((item) => item.id === run.id);
         if (!storedRun) return;
@@ -732,7 +1011,7 @@ export class AgentService {
       for (const effect of manifest.fileEffects) {
         await this.publishSecurityEvent({
           type: "effect.reviewed",
-          moduleId: "filesystem-effects",
+          moduleId: effect.ruleId.startsWith("profile-") ? "policy-profile" : "filesystem-effects",
           stage: "policy",
           severity:
             effect.decision === "deny"
@@ -758,7 +1037,7 @@ export class AgentService {
       for (const effect of manifest.externalPlan.effects) {
         await this.publishSecurityEvent({
           type: "external_effect.reviewed",
-          moduleId: "external-http",
+          moduleId: effect.ruleId.startsWith("profile-") ? "policy-profile" : "external-http",
           stage: "policy",
           severity:
             effect.decision === "deny"
@@ -800,9 +1079,10 @@ export class AgentService {
           agentId: agentAtStart.id,
           runId: run.id,
           status: "pending",
+          scope: "manifest",
           manifestDigest: manifest.manifestDigest,
           policyVersion,
-          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          expiresAt: new Date(Date.now() + agentAtStart.policyProfile.approval.ttlMinutes * 60_000).toISOString(),
           decidedAt: null,
           approvedBy: null,
           createdAt: now(),
@@ -831,7 +1111,7 @@ export class AgentService {
         });
         const timer = setTimeout(
           () => void this.expireApproval(approval.id, "Approval TTL elapsed"),
-          15 * 60_000,
+          agentAtStart.policyProfile.approval.ttlMinutes * 60_000,
         );
         timer.unref();
         return;
@@ -910,14 +1190,29 @@ export class AgentService {
         workspacePath,
         stagedWorkspacePath,
         [EXTERNAL_EFFECT_OUTBOX],
+        this.getAgent(this.getRun(runId).agentId).policyProfile,
       ),
       this.externalSecurity.collect(runId, stagedWorkspacePath),
     ]);
-    const initialExternalPlan =
+    const mixedDomainPlan =
       fileManifest.effects.length > 0 && collectedExternalPlan.effects.length > 0
         ? this.externalSecurity.denyMixedDomains(collectedExternalPlan)
         : collectedExternalPlan;
-    const context = this.getRunSecurityContext(runId);
+    const initialExternalPlan = this.modules.isEnabled("external-http")
+      ? mixedDomainPlan
+      : {
+          ...mixedDomainPlan,
+          decision: mixedDomainPlan.effects.length > 0 ? "deny" as const : mixedDomainPlan.decision,
+          effects: mixedDomainPlan.effects.map((effect) => ({
+            ...effect,
+            decision: "deny" as const,
+            status: "denied" as const,
+            ruleId: "deny-disabled-external-http",
+            reason: "External HTTP Gateway is disabled by the security operator",
+          })),
+        };
+    const profile = this.getAgent(this.getRun(runId).agentId).policyProfile;
+    const context = { ...this.getRunSecurityContext(runId), profile };
     const [fileEffects, externalEffects] = await Promise.all([
       Promise.all(
         fileManifest.effects.map((effect) => this.modules.reviewEffect(effect, context)),
@@ -962,6 +1257,7 @@ export class AgentService {
         staged,
         fileEffects,
         [EXTERNAL_EFFECT_OUTBOX],
+        agent.policyProfile,
       );
       await this.finishCompleted(runId, summary);
       return;
@@ -975,6 +1271,7 @@ export class AgentService {
       staged,
       fileEffects,
       [EXTERNAL_EFFECT_OUTBOX],
+      agent.policyProfile,
     );
     const executed = await this.externalSecurity.execute(externalPlan);
     const safeExecuted = executed.map((effect) => ({
@@ -1216,6 +1513,17 @@ export class AgentService {
       .snapshot()
       .approvals.find((item) => item.agentId === agentId && item.status === "pending");
     if (approval) await this.expireApproval(approval.id, reason);
+  }
+
+  private async invalidateApprovals(
+    predicate: (approval: Approval) => boolean,
+    reason: string,
+  ): Promise<number> {
+    const approvals = this.store.snapshot().approvals.filter(
+      (approval) => approval.status === "pending" && predicate(approval),
+    );
+    for (const approval of approvals) await this.expireApproval(approval.id, reason);
+    return approvals.length;
   }
 
   private normalizeTraceResource(resource: string, stagedWorkspace: string): string | null {

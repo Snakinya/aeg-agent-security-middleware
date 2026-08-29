@@ -56,6 +56,11 @@ const envSchema = z.object({
     .string()
     .url()
     .default("https://ark.cn-beijing.volces.com/api/v3"),
+  SINGGUARD_BASE_URL: z
+    .string()
+    .url()
+    .default("http://127.0.0.1:18080/v1"),
+  SINGGUARD_MODEL: z.string().min(1).default("singguard-nsfa-0.8b"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -106,6 +111,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
     arkApiKey: env.ARK_API_KEY?.trim() ?? "",
     arkModel: env.ARK_MODEL?.trim() ?? "",
     arkBaseUrl: env.ARK_BASE_URL.replace(/\/+$/, ""),
+    singGuardBaseUrl: env.SINGGUARD_BASE_URL.replace(/\/+$/, ""),
+    singGuardModel: env.SINGGUARD_MODEL.trim(),
     nodeEnv: env.NODE_ENV,
   };
 }

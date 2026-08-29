@@ -17,7 +17,7 @@ import path from "node:path";
 import type { AppConfig } from "./config.js";
 import { computeManifestDigest, createEffectId, evaluateEffects } from "./effect-policy.js";
 import { SecurityLedger } from "./security-ledger.js";
-import type { EffectDecision, EffectPreview, FileEffect } from "./types.js";
+import type { EffectDecision, EffectPreview, FileEffect, PolicyProfile } from "./types.js";
 
 interface ScannedEntry {
   hash: string;
@@ -123,6 +123,7 @@ export class EffectGateway {
     workspacePath: string,
     stagedWorkspacePath: string,
     ignoredResources: readonly string[] = [],
+    profile?: PolicyProfile,
   ): Promise<EvaluatedManifest> {
     const [before, after] = await Promise.all([
       this.scanWorkspace(workspacePath),
@@ -159,7 +160,7 @@ export class EffectGateway {
       base.id = createEffectId(runId, base);
       effects.push(base);
     }
-    const evaluated = evaluateEffects(effects);
+    const evaluated = evaluateEffects(effects, profile);
     if (nonRegular.size === 0) return evaluated;
     const adjusted = evaluated.effects.map((effect) =>
       effect.type !== "file.delete" && nonRegular.has(effect.resource)
@@ -192,12 +193,14 @@ export class EffectGateway {
     staged: StagedRun,
     effects: FileEffect[],
     ignoredResources: readonly string[] = [],
+    profile?: PolicyProfile,
   ): Promise<void> {
     const currentManifest = await this.collectManifest(
       runId,
       workspacePath,
       staged.workspacePath,
       ignoredResources,
+      profile,
     );
     if (currentManifest.manifestDigest !== computeManifestDigest(effects)) {
       throw new Error("Effect manifest changed before trusted commit");
@@ -241,6 +244,7 @@ export class EffectGateway {
         workspacePath,
         staged.workspacePath,
         ignoredResources,
+        profile,
       );
       if (verified.effects.length !== 0) {
         throw new Error("Trusted commit verification failed: workspace differs from staging");

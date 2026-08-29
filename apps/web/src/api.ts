@@ -5,8 +5,12 @@ import type {
   EffectPreview,
   Message,
   SecurityEvent,
+  SecurityModule,
   SecurityOverview,
   SystemInfo,
+  PolicyProfile,
+  PolicySimulation,
+  PolicyTemplate,
 } from "./types";
 
 export class ApiError extends Error {
@@ -78,6 +82,31 @@ export const api = {
     request<{ messages: Message[] }>("/api/agents/" + id + "/messages"),
   runs: (id: string) =>
     request<{ runs: AgentRun[] }>("/api/agents/" + id + "/runs"),
+  policy: (id: string) =>
+    request<{
+      profile: PolicyProfile;
+      templates: Record<Exclude<PolicyTemplate, "custom">, PolicyProfile>;
+      hardDenyRules: string[];
+      pendingApprovals: number;
+    }>("/api/agents/" + id + "/policy"),
+  updatePolicy: (id: string, profile: PolicyProfile) =>
+    request<{ profile: PolicyProfile; invalidatedApprovals: number }>("/api/agents/" + id + "/policy", {
+      method: "PUT",
+      body: JSON.stringify(profile),
+    }),
+  applyPolicyTemplate: (id: string, template: Exclude<PolicyTemplate, "custom">) =>
+    request<{ profile: PolicyProfile; invalidatedApprovals: number }>("/api/agents/" + id + "/policy/template", {
+      method: "POST",
+      body: JSON.stringify({ template }),
+    }),
+  simulatePolicy: (
+    id: string,
+    input: { kind: "file"; resource: string } | { kind: "http"; resource: string; method: string },
+    profile?: PolicyProfile,
+  ) => request<{ result: PolicySimulation }>("/api/agents/" + id + "/policy/simulate", {
+    method: "POST",
+    body: JSON.stringify({ ...input, ...(profile ? { profile } : {}) }),
+  }),
   sendMessage: (id: string, content: string) =>
     request<{ run: AgentRun; message: Message }>(
       "/api/agents/" + id + "/messages",
@@ -115,6 +144,12 @@ export const api = {
       "/api/ledger/verify",
     ),
   securityOverview: () => request<SecurityOverview>("/api/security/overview"),
+  securityModules: () => request<{ modules: SecurityModule[] }>("/api/security/modules"),
+  configureSecurityModule: (moduleId: string, body: { enabled?: boolean; config?: Record<string, unknown> }) =>
+    request<{ module: SecurityModule; invalidatedApprovals: number }>("/api/security/modules/" + moduleId, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   securityEvents: (query = "") =>
     request<{ events: SecurityEvent[] }>(
       "/api/security/events" + (query ? "?" + query : ""),

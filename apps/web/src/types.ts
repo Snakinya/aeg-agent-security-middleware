@@ -1,4 +1,31 @@
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
+export type PolicyTemplate = "relaxed" | "balanced" | "strict" | "custom";
+
+export interface PolicyProfile {
+  version: number;
+  template: PolicyTemplate;
+  fileRules: { autoAllow: string[]; requireApproval: string[]; deny: string[] };
+  external: {
+    allowHosts: string[];
+    requireApprovalMethods: Array<"POST" | "PUT" | "PATCH">;
+  };
+  egress: { allow: string[] };
+  approval: { ttlMinutes: number };
+  analyzers: {
+    "guardrail-model": { enabled: boolean; denyThreshold: number; reviewThreshold: number };
+    "secret-scanner": { enabled: boolean; action: "deny" | "require_approval" };
+  };
+  updatedAt: string;
+}
+
+export interface PolicySimulation {
+  decision: "allow" | "require_approval" | "deny";
+  moduleId: string;
+  ruleId: string;
+  reason: string;
+  matchedRule: string | null;
+  locked: boolean;
+}
 export type RunStatus =
   | "queued"
   | "running"
@@ -75,6 +102,7 @@ export interface Approval {
   agentId: string;
   runId: string;
   status: "pending" | "approved" | "denied" | "expired";
+  scope: "intake" | "manifest";
   manifestDigest: string;
   policyVersion: string;
   expiresAt: string;
@@ -92,6 +120,7 @@ export interface Agent {
   ownerHumanId: string;
   principalId: string;
   principalStatus: "active" | "revoked";
+  policyProfile: PolicyProfile;
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
@@ -186,12 +215,31 @@ export interface SecurityModule {
   id: string;
   name: string;
   version: string;
-  kind: "identity" | "runtime" | "effect" | "approval" | "evidence";
+  kind: "policy" | "gateway" | "analyzer" | "approval" | "evidence";
   description: string;
   capabilities: string[];
-  status: "active" | "disabled";
+  locked: boolean;
+  enabled: boolean;
+  status: "active" | "disabled" | "degraded";
   statusReason: string;
+  config: Record<string, unknown>;
+  revision: number;
+  configSchema?: {
+    type: "object";
+    title?: string;
+    properties: Record<string, {
+      type: "string" | "number" | "boolean" | "array";
+      title: string;
+      description?: string;
+      default?: unknown;
+      minimum?: number;
+      maximum?: number;
+      enum?: string[];
+      items?: { type: "string" };
+    }>;
+  };
   events: number;
+  recentEvents?: SecurityEvent[];
 }
 
 export interface SecurityOverview {

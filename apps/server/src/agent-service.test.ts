@@ -119,6 +119,28 @@ describe("Agent lifecycle", () => {
     expect(service.getAgent(agent.id).codexThreadId).toBe("fake-thread");
   });
 
+  it("simulates the effective platform and Agent HTTP policy", async () => {
+    const service = await makeService(new FakeRunner(), {
+      AEG_HTTP_ALLOWLIST: "127.0.0.1",
+      AEG_HTTP_ALLOW_PRIVATE_NETWORKS: "true",
+    });
+    const agent = await service.createAgent({ name: "Policy simulator" });
+    const draft = structuredClone(agent.policyProfile);
+    draft.external.allowHosts.push("evil.example");
+    draft.external.requireApprovalMethods = [];
+
+    await expect(service.simulateAgentPolicy(agent.id, {
+      kind: "http", resource: "https://evil.example/upload", method: "GET",
+    }, draft)).resolves.toMatchObject({
+      decision: "deny", moduleId: "external-http", ruleId: "deny-host-outside-allowlist", locked: true,
+    });
+    await expect(service.simulateAgentPolicy(agent.id, {
+      kind: "http", resource: "http://127.0.0.1:3999/tickets", method: "POST",
+    }, draft)).resolves.toMatchObject({
+      decision: "require_approval", moduleId: "external-http", ruleId: "approve-state-changing-http", locked: true,
+    });
+  });
+
   it("atomically accepts only one concurrent run per Agent", async () => {
     let finish!: (result: RunnerResult) => void;
     const pending = new Promise<RunnerResult>((resolve) => {
@@ -251,6 +273,54 @@ describe("Agent lifecycle", () => {
     expect(service.getRun(run.id).workspaceHashBefore).not.toBe(
       service.getRun(run.id).workspaceHashAfter,
     );
+  });
+
+  it("pauses an Intake signal before Runtime and resumes only after approval", async () => {
+    let runtimeCalls = 0;
+    const service = await makeService({
+      run: async (request) => {
+        runtimeCalls += 1;
+        return { output: "approved: " + request.prompt, threadId: "approved-intake", usage: null, trace: [] };
+      },
+      cancel: async () => false,
+      isAvailable: async () => true,
+    });
+    const agent = await service.createAgent({ name: "Intake approval" });
+    const profile = structuredClone(agent.policyProfile);
+    profile.analyzers["secret-scanner"].action = "require_approval";
+    await service.updatePolicyProfile(agent.id, profile);
+
+    const { run } = await service.sendMessage(agent.id, "Review token=abcdefghijklmnop before continuing");
+    expect(service.getRun(run.id).status).toBe("awaiting_approval");
+    expect(runtimeCalls).toBe(0);
+    const approval = service.getApprovals("pending")[0];
+    expect(approval).toMatchObject({ scope: "intake", runId: run.id });
+
+    await service.approveApproval(approval!.id);
+    await expect.poll(() => service.getRun(run.id).status).toBe("completed");
+    expect(runtimeCalls).toBe(1);
+  });
+
+  it("expires pending approval and restores staging when Agent policy changes", async () => {
+    const service = await makeService({
+      run: async (request) => {
+        await writeFile(path.join(request.workspacePath, "Dockerfile"), "FROM scratch\n");
+        return { output: "created image", threadId: "policy-change", usage: null, trace: [] };
+      },
+      cancel: async () => false,
+      isAvailable: async () => true,
+    });
+    const agent = await service.createAgent({ name: "Policy invalidation" });
+    const { run } = await service.sendMessage(agent.id, "create Dockerfile");
+    await expect.poll(() => service.getRun(run.id).status).toBe("awaiting_approval");
+    const approval = service.getApprovals("pending")[0];
+
+    const result = await service.updatePolicyProfile(agent.id, structuredClone(service.getAgent(agent.id).policyProfile));
+    expect(result.invalidatedApprovals).toBe(1);
+    expect(service.getApprovals().find((item) => item.id === approval!.id)?.status).toBe("expired");
+    expect(service.getRun(run.id).status).toBe("rolled_back");
+    expect(service.getRun(run.id).workspaceHashBefore).toBe(service.getRun(run.id).workspaceHashAfter);
+    await expect(access(path.join(agent.workspacePath, "Dockerfile"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("rejects approval when staged content changes after review", async () => {

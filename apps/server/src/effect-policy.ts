@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { EffectDecision, FileEffect } from "./types.js";
+import type { PolicyProfile } from "./types.js";
+import { decideFileResource, defaultPolicyProfile } from "./policy-profile.js";
 
 export const POLICY_VERSION = "builtin-v2";
 
@@ -45,59 +47,20 @@ export function computeManifestDigest(effects: FileEffect[]): string {
   );
 }
 
-function isHardDenied(resource: string): boolean {
-  const segments = resource.split("/");
-  const basename = segments.at(-1) ?? resource;
-  const protectedEnvironmentFile =
-    basename === ".env" ||
-    (basename.startsWith(".env.") &&
-      ![".env.example", ".env.sample", ".env.template"].includes(basename));
-  return (
-    segments.includes(".git") ||
-    resource.startsWith(".launchpad/") ||
-    basename === "AGENTS.md" ||
-    protectedEnvironmentFile
-  );
+export function decideEffect(
+  effect: FileEffect,
+  profile: PolicyProfile = defaultPolicyProfile(),
+): Pick<FileEffect, "decision" | "ruleId" | "reason"> {
+  const result = decideFileResource(effect.resource, profile);
+  return { decision: result.decision, ruleId: result.ruleId, reason: result.reason };
 }
 
-function requiresApproval(resource: string): boolean {
-  const basename = resource.split("/").at(-1) ?? resource;
-  return (
-    resource.startsWith(".github/workflows/") ||
-    resource.startsWith("infra/") ||
-    basename === "Dockerfile" ||
-    /^docker-compose(?:\..+)?\.ya?ml$/i.test(basename)
-  );
-}
-
-export function decideEffect(effect: FileEffect): Pick<FileEffect, "decision" | "ruleId" | "reason"> {
-  if (isHardDenied(effect.resource)) {
-    return {
-      decision: "deny",
-      ruleId: "hard-deny-platform-and-secrets",
-      reason: "Platform metadata, policy, VCS internals, and environment secrets are protected",
-    };
-  }
-  if (requiresApproval(effect.resource)) {
-    return {
-      decision: "require_approval",
-      ruleId: "approve-operational-files",
-      reason: "Operational and deployment files require an exact, digest-bound approval",
-    };
-  }
-  return {
-    decision: "allow",
-    ruleId: "allow-workspace-change",
-    reason: "Change is inside the delegated workspace scope",
-  };
-}
-
-export function evaluateEffects(effects: FileEffect[]): {
+export function evaluateEffects(effects: FileEffect[], profile: PolicyProfile = defaultPolicyProfile()): {
   effects: FileEffect[];
   decision: EffectDecision;
   manifestDigest: string;
 } {
-  const evaluated = effects.map((effect) => ({ ...effect, ...decideEffect(effect) }));
+  const evaluated = effects.map((effect) => ({ ...effect, ...decideEffect(effect, profile) }));
   const decision = evaluated.some((effect) => effect.decision === "deny")
     ? "deny"
     : evaluated.some((effect) => effect.decision === "require_approval")
