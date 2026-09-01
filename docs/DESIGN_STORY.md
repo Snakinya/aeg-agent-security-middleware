@@ -263,7 +263,7 @@ With AEG running:
 # Read-only checks of the current control plane and evidence
 npm run verify:live
 
-# Fresh real Ark + Docker Runtime normal/deny/rollback acceptance
+# Fresh real Ark + Docker Runtime commit/deny/rollback/later-safe acceptance
 npm run verify:e2e
 
 # Type checks, 51 tests, production builds and strict prepared-demo evidence

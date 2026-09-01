@@ -122,7 +122,7 @@ async function main() {
   const agents = Array.isArray(agentResponse.agents) ? agentResponse.agents : [];
   if (agents.length === 0) {
     if (requireDemoEvidence) {
-      fail("Prepared demo evidence", "No Agent exists; create one and run the normal and rollback cases from docs/CASEBOOK.md");
+      fail("Prepared demo evidence", "No Agent exists; create one and run Cases 1, 3 and 3B from docs/CASEBOOK.md");
     } else {
       skip("Per-Agent policy and Run evidence", "No Agent exists yet");
     }
@@ -160,6 +160,16 @@ async function main() {
       run.workspaceHashAfter &&
       run.workspaceHashBefore === run.workspaceHashAfter
     );
+    const postRecovery = rollback ? allRuns.find(({ agent, run }) =>
+      agent.id === rollback.agent.id &&
+      run.status === "completed" &&
+      run.effects?.length > 0 &&
+      run.effects.every((effect) => effect.decision === "allow") &&
+      run.workspaceHashBefore &&
+      run.workspaceHashAfter &&
+      run.workspaceHashBefore !== run.workspaceHashAfter &&
+      Date.parse(run.createdAt) > Date.parse(rollback.run.completedAt ?? rollback.run.createdAt)
+    ) : undefined;
 
     const evidenceResult = (found, name, successDetail, missingDetail) => {
       if (found) return pass(name, successDetail(found));
@@ -177,6 +187,12 @@ async function main() {
       "Denial and exact recovery evidence",
       ({ agent, run }) => `agent=${agent.name}, run=${run.id}, before/after hashes match`,
       "Run Case 3 from docs/CASEBOOK.md",
+    );
+    evidenceResult(
+      postRecovery,
+      "Later safe Run after containment",
+      ({ agent, run }) => `agent=${agent.name}, run=${run.id}, safe commit followed the denied Run`,
+      "Run Case 3, then Case 3B from docs/CASEBOOK.md on the same Agent",
     );
 
     if (rollback) {

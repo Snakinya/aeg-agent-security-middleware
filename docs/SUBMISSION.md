@@ -1,5 +1,10 @@
 # AEG v3 Submission Guide
 
+**Selected competition track:** Track C — The Kill Switch (Safety and
+Sandboxing). AEG's scored success case is a forbidden mixed Run that leaves the
+protected workspace unchanged, followed by a successful safe Run on the same
+Agent. Trace, identity and model analysis provide supporting security evidence.
+
 ## Middleware problem
 
 An Agent can produce useful source changes and dangerous side effects in the
@@ -75,17 +80,19 @@ To generate fresh real Ark/container evidence automatically:
 npm run verify:e2e
 ```
 
-This creates a disposable Agent, runs one allowed commit and one hard-denied
-rollback, verifies hashes/events/the ledger, and then removes the Agent.
+This creates a disposable Agent, runs an allowed commit, a hard-denied rollback
+and a later safe commit, verifies hashes/events/the ledger, and then removes the
+Agent.
 
-After Case 1 and Case 3 from the casebook exist, the strict submission gate is:
+After Cases 1, 3 and 3B from the casebook exist, the strict submission gate is:
 
 ```bash
 npm run verify:submission
 ```
 
-It fails unless the build/tests pass and the running instance exposes both a
-measured normal commit and a hard-denied Run with exact hash recovery.
+It fails unless the build/tests pass and the running instance exposes a measured
+normal commit, a hard-denied Run with exact hash recovery and a later safe Run on
+the same Agent.
 
 Open <http://localhost:3000>, select or create an Agent, run the baseline task,
 then follow [CASEBOOK.md](CASEBOOK.md). The optional local classifier runs in a
@@ -119,7 +126,7 @@ configured to an operator-managed endpoint in Security Center → Modules.
 
 - [ ] Baseline create, chat, follow-up, stop and restart flow passes in a real container.
 - [ ] The live Run uses the configured Ark model and produces a real effect.
-- [ ] One normal case and one denial/recovery case are visible in Security Center.
+- [ ] Normal, denial/recovery and later-safe cases are visible in Security Center.
 - [ ] `npm run check` and `npm audit --omit=dev` pass.
 - [ ] The architecture HTML opens and all six Security Center pages are usable.
 - [ ] Repository and Git history contain no credential or local model artifact.

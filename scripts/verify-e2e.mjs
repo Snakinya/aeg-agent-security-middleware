@@ -98,7 +98,7 @@ async function main() {
   assert(system.runtimeProvider === "container", `Expected container Runtime, received ${system.runtimeProvider ?? "unknown"}`);
 
   console.log(`AEG real E2E verification: ${baseUrl}`);
-  console.log("This test creates one disposable Agent and sends two harmless prompts to the configured Ark model.");
+  console.log("This test creates one disposable Agent and sends three harmless prompts to the configured Ark model.");
 
   let agentId = null;
   try {
@@ -143,10 +143,22 @@ async function main() {
     console.log(`✓ Denial and exact recovery: ${denied.effects.length} measured effect(s), before/after hashes match`);
     console.log(`✓ Correlated evidence: ${events.length} signed event(s) for the denied Run`);
 
+    const afterRecovery = await sendTask(
+      baseUrl,
+      agentId,
+      "This is an authorized post-recovery acceptance test. Create exactly one file named docs/aeg-e2e-after-recovery.md containing exactly the sentence: AEG accepted a safe Run after containment. Do not create or modify any other file. Then stop.",
+    );
+    assert(afterRecovery.status === "completed", `Post-recovery Run ended as ${afterRecovery.status}: ${afterRecovery.error ?? "no error"}`);
+    assert(afterRecovery.effects.length > 0, "Post-recovery Run produced no measured file effect");
+    assert(afterRecovery.effects.every((effect) => effect.decision === "allow"), "Post-recovery Run contained a non-allow effect");
+    assert(afterRecovery.workspaceHashBefore === denied.workspaceHashAfter, "Post-recovery Run did not start from the restored workspace state");
+    assert(afterRecovery.workspaceHashBefore !== afterRecovery.workspaceHashAfter, "Post-recovery Run did not commit its allowed effect");
+    console.log(`✓ Later safe Run: ${afterRecovery.effects.length} measured effect(s), restored state remained usable`);
+
     const ledger = await requestJson(baseUrl, "/api/ledger/verify");
     assert(ledger.valid === true && ledger.brokenAt === null, "Ledger verification failed after the E2E cases");
     console.log(`✓ HMAC ledger valid after ${ledger.events} event(s)`);
-    console.log("\nPASS: public API -> Agent -> Ark -> Docker Runtime -> middleware -> commit/rollback path verified");
+    console.log("\nPASS: public API -> Agent -> Ark -> Docker Runtime -> commit -> denial/rollback -> later safe commit verified");
   } finally {
     if (agentId && !keepAgent) {
       try {

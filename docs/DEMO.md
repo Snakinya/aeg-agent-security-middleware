@@ -18,8 +18,8 @@ cp .env.example .env
 npm run poc
 ```
 
-Open <http://localhost:3000>, create or select an Agent and run Cases 1 and 3
-from [CASEBOOK.md](CASEBOOK.md). In another terminal:
+Open <http://localhost:3000>, create or select an Agent and run Cases 1, 3 and
+3B from [CASEBOOK.md](CASEBOOK.md). In another terminal:
 
 ```bash
 npm run verify:demo
@@ -33,11 +33,11 @@ npm run verify:e2e
 ```
 
 It creates one disposable Agent, makes one allowed file change, attempts one
-mixed `.env` change, proves exact rollback and correlated evidence, verifies the
-ledger, and removes the Agent. It normally takes about one minute and consumes
-two Ark turns.
+mixed `.env` change, proves exact rollback, then commits a later safe change on
+the restored state. It verifies correlated evidence and the ledger before
+removing the Agent. It consumes three Ark turns.
 
-The expected result is `PASS: 13 passed, 0 skipped, 0 failed`. The command is
+The expected result is `PASS: 14 passed, 0 skipped, 0 failed`. The command is
 read-only and prints no key, prompt payload or file content. When another local
 application owns port 3000, start with `PORT=3100 PUBLIC_PORT=3100 npm run poc`;
 the verifier discovers that fallback automatically, or accepts
@@ -45,7 +45,7 @@ the verifier discovers that fallback automatically, or accepts
 
 For a clean clone with no prepared Runs, `npm run verify:live` checks the full
 running control plane and marks only the historical Run evidence as skipped.
-After Cases 1 and 3, the strict verifier must pass.
+After Cases 1, 3 and 3B, the strict verifier must pass.
 
 ## Evidence contract for the three-minute demo
 
@@ -55,6 +55,7 @@ After Cases 1 and 3, the strict verifier must pass.
 | Persistence is mediated | Run passes five checkpoints | Activity events identify the responsible modules |
 | Hard deny cannot be configured away | `.env` is denied | Simulator reports locked rule; mixed Run rolls back |
 | Recovery is exact | Safe sibling change also stays out | Before and after workspace hashes match |
+| Containment does not poison the Agent | A later safe Run commits | Same Agent returns to the normal path after rollback |
 | Approval covers exact content | Pending manifest shows digest and policy version | Replacement and policy invalidation tests |
 | Optional model guard is modular | SingGuard event appears at Intake | Module health/configuration and normalized tags |
 | Evidence is verifiable | Overview reports protected | HMAC chain verification succeeds |
@@ -67,6 +68,7 @@ After Cases 1 and 3, the strict verifier must pass.
 4. Select one Agent in `ready` state. Prepare these historical Runs:
    - Case 1 from [CASEBOOK.md](CASEBOOK.md): normal committed source change.
    - Case 3: forbidden `.env` mixed with a safe source change, fully rolled back.
+   - The live Run recorded later will serve as Case 3B and prove recovery.
    - Optional: Case 4 or 5 for a SingGuard Intake decision.
 5. Leave Security Center → Activity focused on the normal Run.
 
@@ -108,6 +110,9 @@ Then summarize the file you created.
 While it runs, show the light security notice and current Run status. When it
 finishes, open Activity and show the five checkpoint strip, measured file effect,
 module badge and changed workspace hash.
+
+Point out that this Run is newer than the prepared denied Run on the same Agent:
+the middleware contained the malicious action without leaving the Agent stuck.
 
 ### 1:20–1:55 — exact human approval
 
@@ -168,6 +173,7 @@ Stop before three minutes.
 - [ ] One Agent is selected from the original frontend and remains controllable.
 - [ ] One real model/Runtime/file action runs during the recording.
 - [ ] Normal commit and denial/recovery evidence are both shown.
+- [ ] A safe Run after the denied Run completes on the same Agent.
 - [ ] Architecture displays trust boundary and enforcement points.
 - [ ] Approval digest or model degradation is demonstrated functionally.
 - [ ] Ledger verification succeeds.

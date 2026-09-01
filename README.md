@@ -1,5 +1,8 @@
 # AEG — Zero-Trust Agent Security Middleware
 
+> **TikTok TechJam 2026 · Agent Middleware · Selected Track C — The Kill
+> Switch (Safety and Sandboxing)**
+
 Agent Effect Gateway (AEG) extends the provided Volc Agent Launchpad Starter Kit
 with a trusted, transactional middleware boundary between an untrusted Agent
 Runtime and persistent effects. It stages each Run, measures the resulting file
@@ -13,6 +16,51 @@ behavior, Security Center, evidence model, policy controls, tests, and demo case
 
 Run the local judging path with Docker, Colima, or rootless Podman, or use the
 optional Volcengine ECS deployment path.
+
+## Judge guide
+
+AEG enters **one competition track: Track C**. Its protected asset is the
+persistent Agent workspace and committed session state. A malicious mixed Run
+that writes a forbidden `.env` file is executed only in staging, denied by the
+trusted middleware, discarded as one transaction, and verified by equal
+before/after workspace hashes. A later safe Run can proceed normally. Trace,
+identity and model analysis support this containment claim; they are not
+separate track submissions.
+
+### Start here
+
+| What to review | Direct evidence |
+| --- | --- |
+| Why the middleware exists and why the design is coherent | [Design story](docs/DESIGN_STORY.md) |
+| Trust boundary, five checkpoints and transaction invariants | [Technical architecture](docs/ARCHITECTURE.md) · [interactive one-page diagram](apps/web/public/diagrams/aeg-architecture.html) |
+| Three-minute judging sequence | [Demo script](docs/DEMO.md) · [copy-ready cases](docs/CASEBOOK.md) |
+| Automated and real Ark/container proof | [Validation evidence](docs/VALIDATION.md) |
+| Threat model, guarantees and residual risks | [Security contract](docs/AEG_SECURITY.md) · [known limitations](SECURITY.md) |
+| Scoring alignment and final submission checks | [Submission guide](docs/SUBMISSION.md) |
+
+### Required deliverables
+
+1. **Live demo:** follow [docs/DEMO.md](docs/DEMO.md); it includes a successful
+   Run, a denied malicious Run, exact recovery evidence and a later safe Run.
+2. **One-page architecture:** open
+   [apps/web/public/diagrams/aeg-architecture.html](apps/web/public/diagrams/aeg-architecture.html),
+   or use Security Center → Architecture in the running application.
+3. **Runnable repository:** use the quick start below, then run
+   `npm run verify:e2e` for a fresh positive and negative acceptance test.
+
+### Fast judging path
+
+```bash
+cp .env.example .env        # Set ARK_API_KEY and ARK_MODEL only
+npm run check               # Type checks, 51 tests and production builds
+npm run poc                 # One-command local application + Runtime
+```
+
+With AEG running, execute this in another terminal:
+
+```bash
+npm run verify:e2e          # Commit → denial/rollback → later safe commit
+```
 
 > [!WARNING]
 > This is a single-user proof of concept. Agent Effect Gateway protects
@@ -35,14 +83,6 @@ optional Volcengine ECS deployment path.
 ### Pluggable SingGuard-NSFA analyzer
 
 ![AEG Guardrail Model module](submission-media/devpost-3x2/06-modules-singguard.png)
-
-### Agent Playground
-
-![Agent Playground showing lifecycle controls, starter prompts, and the Codex Runtime](docs/assets/playground.jpg)
-
-### Create an Agent
-
-![Create Agent form with name, description, and workspace instructions](docs/assets/create-agent.jpg)
 
 ## Features
 
@@ -93,8 +133,8 @@ Runtime image.
 ### 2. Clone the repository
 
 ```bash
-git clone <repository-url> volc-agent-launchpad
-cd volc-agent-launchpad
+git clone https://github.com/Snakinya/aeg-agent-security-middleware.git aeg
+cd aeg
 ```
 
 Skip this step when already working from the repository root.
@@ -364,20 +404,21 @@ Generate a fresh real Ark/container acceptance run with a disposable Agent:
 npm run verify:e2e
 ```
 
-This sends two harmless tasks, proves one measured commit and one exact rollback,
-verifies correlated events and the HMAC ledger, and then removes the Agent.
+This sends three harmless tasks, proves a measured commit, exact rollback and a
+later safe commit from the restored state, verifies correlated events and the
+HMAC ledger, and then removes the Agent.
 
-After the normal commit and rollback cases from the casebook exist, run the
-strict submission gate:
+After Cases 1, 3 and 3B from the casebook exist, run the strict submission gate:
 
 ```bash
 npm run verify:submission
 ```
 
 The strict verifier requires API/Runtime readiness, a valid HMAC chain, active
-locked modules, a locked `.env` denial, correlated normal and rollback Runs,
-equal rollback hashes, and no orphan active Run. It prints no credential or
-unredacted content. Additional infrastructure checks are:
+locked modules, a locked `.env` denial, correlated rollback evidence, equal
+rollback hashes, a later successful Run on the same Agent and no orphan active
+Run. It prints no credential or unredacted content. Additional infrastructure
+checks are:
 
 ```bash
 npm audit --omit=dev
@@ -387,20 +428,13 @@ docker compose config
 
 ## Documentation
 
-- [Design story for reviewers](docs/DESIGN_STORY.md)
-- [Hackathon submission guide](docs/SUBMISSION.md)
-- [Reproducible demo casebook](docs/CASEBOOK.md)
-- [Three-minute recording script](docs/DEMO.md)
-- [Validation evidence](docs/VALIDATION.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Security module contract](docs/SECURITY_MODULES.md)
-- [Interactive one-page architecture](apps/web/public/diagrams/aeg-architecture.html)
-- [Local POC](docs/LOCAL_POC.md)
-- [Deployment](docs/DEPLOYMENT.md)
-- [Hackathon extension guide](docs/HACKATHON_EXTENSION_GUIDE.md)
-- [Security policy](SECURITY.md)
-- [Agent Effect Gateway design and demo](docs/AEG_SECURITY.md)
-- [Security module integration](docs/SECURITY_MODULES.md)
+The judge-facing reading order is listed in [Judge guide](#judge-guide). The
+remaining documents support implementation and operation:
+
+- [Security module integration contract](docs/SECURITY_MODULES.md)
+- [Local Docker, Colima and Podman operation](docs/LOCAL_POC.md)
+- [Volcengine ECS deployment](docs/DEPLOYMENT.md)
+- [Repository security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License

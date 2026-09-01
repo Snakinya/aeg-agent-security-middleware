@@ -4,6 +4,19 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 
+# The documented one-command path reads the operator-owned local configuration.
+# Explicit Ark credentials still take precedence over `.env` values.
+if [[ -f .env ]]; then
+  existing_ark_api_key="${ARK_API_KEY-}"
+  existing_ark_model="${ARK_MODEL-}"
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+  [[ -n "$existing_ark_api_key" ]] && export ARK_API_KEY="$existing_ark_api_key"
+  [[ -n "$existing_ark_model" ]] && export ARK_MODEL="$existing_ark_model"
+fi
+
 runtime_image="${CONTAINER_RUNTIME_IMAGE:-volc-agent-runtime:local}"
 runtime_base_image="${CONTAINER_RUNTIME_BASE_IMAGE:-node:22-bookworm-slim}"
 runtime_apt_mirror="${CONTAINER_APT_MIRROR:-}"
