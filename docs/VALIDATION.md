@@ -37,8 +37,8 @@ including the local `3100` fallback used when port `3000` is occupied. Set
 Ark model three times, creates a disposable Agent, checks measured effects,
 hashes, correlated recovery events, a later safe commit and the final ledger,
 then removes the Agent using the documented archive policy. Supply `--keep` or
-`AEG_E2E_KEEP=true` only when its evidence should remain visible for debugging
-or recording.
+`AEG_E2E_KEEP=true` only when a reviewer needs the disposable Agent to remain
+visible in Security Center.
 
 Expected strict result for the prepared demo state:
 
@@ -122,5 +122,5 @@ Containment and readability passed at 1440×900, 1600×1000, 1920×1080 and
 - `.env`, audit keys and GGUF files are excluded from Git.
 - Source and Git-history pattern scans found no Ark key or common credential form.
 - Security evidence stores redacted prompts/reasons and normalized SingGuard tags.
-- The demo script prohibits terminals, developer tools, real credentials and
-  browser storage from appearing in the recording.
+- The reviewer scenario uses harmless placeholders and requires no credential,
+  terminal environment or browser-storage inspection.

@@ -4,7 +4,7 @@
 >
 > TikTok TechJam 2026 challenge submission
 
-Agent Effect Gateway (AEG) extends the provided Volc Agent Launchpad Starter Kit
+Agent Effect Gateway (AEG) extends the provided Agent Launchpad Starter Kit
 with a trusted, transactional middleware boundary between an untrusted Agent
 Runtime and persistent effects. It stages each Run, measures the resulting file
 and declared HTTP effects, applies versioned per-Agent policy and pluggable
@@ -12,13 +12,13 @@ analyzers, and then commits, pauses for exact approval, or restores the protecte
 state.
 
 The original Agent CRUD, lifecycle, Playground, persistent sessions, Codex CLI
-Runtime, and Volcengine Ark integration remain available. AEG adds the middleware
+Runtime, and BytePlus ModelArk integration remain available. AEG adds the middleware
 behavior, Security Center, evidence model, policy controls, tests, and demo cases.
 
 Run the local judging path with Docker, Colima, or rootless Podman, or use the
-optional Volcengine ECS deployment path.
+optional BytePlus ECS deployment path.
 
-## Judge guide
+## Reviewer guide
 
 AEG is our implementation for **Agent Launchpad: Design and Build Lightweight
 Agent Middleware**. It adds a lightweight, pluggable security middleware layer
@@ -29,16 +29,25 @@ complete transaction, proves the protected workspace hash is unchanged, and
 then accepts a later safe Run. Policy, approval, identity, model analysis and
 trace evidence are modules around the same middleware Runtime.
 
+AEG remains lightweight by keeping the Starter Kit's APIs, AgentRunner boundary
+and local container path intact. A small typed module contract attaches security
+logic at five lifecycle checkpoints. The deterministic transaction kernel works
+with zero additional service dependencies; model analyzers, declared HTTP
+mediation and stricter per-Agent profiles are optional modules.
+
+The complete judging path runs locally with Docker, Colima or Podman. BytePlus
+ECS deployment is optional and is not needed to evaluate the middleware.
+
 ### Start here
 
 | What to review | Direct evidence |
 | --- | --- |
 | Why the middleware exists and why the design is coherent | [Design story](docs/DESIGN_STORY.md) |
 | Trust boundary, five checkpoints and transaction invariants | [Technical architecture](docs/ARCHITECTURE.md) · [interactive one-page diagram](apps/web/public/diagrams/aeg-architecture.html) |
-| Three-minute judging sequence | [Demo script](docs/DEMO.md) · [copy-ready cases](docs/CASEBOOK.md) |
+| Reproduce the required live scenario | [Demo and reproduction guide](docs/DEMO.md) · [additional cases](docs/CASEBOOK.md) |
 | Automated and real Ark/container proof | [Validation evidence](docs/VALIDATION.md) |
 | Threat model, guarantees and residual risks | [Security contract](docs/AEG_SECURITY.md) · [known limitations](SECURITY.md) |
-| Scoring alignment and final submission checks | [Submission guide](docs/SUBMISSION.md) |
+| Formal requirement and scoring alignment | [Challenge alignment](docs/CHALLENGE_ALIGNMENT.md) |
 
 ### Required deliverables
 
@@ -105,14 +114,14 @@ npm run verify:e2e          # Commit → denial/rollback → later safe commit
 - Dedicated six-page Security Center for posture, correlated Agent/Session/Run
   activity, approvals, policy simulation, module configuration, and architecture
 - Queryable Runtime trace plus HMAC-chained security evidence
-- Docker and Terraform deployment paths for Volcengine ECS
+- Docker and Terraform deployment paths for BytePlus ECS
 
 ## Requirements
 
 - Node.js 22+
 - npm 10+
 - Docker, Colima, or Podman
-- A Volcengine Ark API key and endpoint that supports the Responses API
+- A BytePlus ModelArk API key and endpoint that supports the Responses API
 
 Codex CLI is included in the Runtime image and is not required on the host.
 
@@ -175,7 +184,7 @@ In the Web UI:
 The Agent can write files, run commands, and continue the same Codex session in
 later messages.
 
-### P1 external HTTP demo
+### Declared external HTTP demo
 
 Start the local ticket target in a second terminal:
 
@@ -334,7 +343,7 @@ cp deploy/volcengine/terraform.tfvars.example \
 | `SINGGUARD_MODEL` | `singguard-nsfa-0.8b` | Model alias exposed by llama.cpp. |
 | `APP_AUTH_TOKEN` | Empty on loopback | Shared demo token; use 24+ random characters remotely. |
 | `AUDIT_HMAC_KEY` | Generated locally | Optional 32+ character audit-chain key. |
-| `AEG_HTTP_ALLOWLIST` | Empty | Comma-separated exact hosts or `*.example.com` for P1. |
+| `AEG_HTTP_ALLOWLIST` | Empty | Comma-separated exact hosts or `*.example.com` for the declared HTTP gateway. |
 | `AEG_HTTP_ALLOW_PRIVATE_NETWORKS` | `false` | Permit loopback/private HTTP only for controlled demos. |
 | `AEG_HTTP_TIMEOUT_MS` | `5000` | External request timeout. |
 | `AEG_HTTP_MAX_RESPONSE_BYTES` | `65536` | Maximum response evidence captured. |
@@ -370,7 +379,7 @@ flowchart LR
     Stage --> Runtime{"Runtime provider"}
     Runtime -->|Local POC| Container["Disposable Docker / Colima / Podman container"]
     Runtime -->|ECS profile| Codex["Codex CLI in application container"]
-    Container --> Ark["Volcengine Ark Responses API"]
+    Container --> Ark["BytePlus ModelArk Responses API"]
     Codex --> Ark
     Http --> Target["Allowlisted service"]
 ```
@@ -430,12 +439,12 @@ docker compose config
 
 ## Documentation
 
-The judge-facing reading order is listed in [Judge guide](#judge-guide). The
+The reviewer-facing reading order is listed in [Reviewer guide](#reviewer-guide). The
 remaining documents support implementation and operation:
 
 - [Security module integration contract](docs/SECURITY_MODULES.md)
 - [Local Docker, Colima and Podman operation](docs/LOCAL_POC.md)
-- [Volcengine ECS deployment](docs/DEPLOYMENT.md)
+- [BytePlus ECS deployment](docs/DEPLOYMENT.md)
 - [Repository security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 

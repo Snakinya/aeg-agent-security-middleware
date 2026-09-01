@@ -226,11 +226,12 @@ claiming that a probabilistic model is the trust boundary.
 
 | Challenge expectation | AEG response |
 | --- | --- |
+| Build middleware, not the platform | Reuse the supplied UI, CRUD, lifecycle, Playground, Ark connection, Runtime abstraction and local containers |
 | Preserve the baseline | Agent CRUD, lifecycle, Playground, Ark and sessions remain intact |
 | Implement real middleware behavior | Enforcement executes between Runtime staging and persistent effects |
 | Define a meaningful boundary | Trusted kernel owns measurement, decision and commit; Runtime remains untrusted |
 | Demonstrate failure and recovery | Mixed manifest denial produces exact workspace-hash recovery |
-| Provide extensible design | Typed checkpoint modules with tightening-only arbitration |
+| Stay lightweight and extensible | One typed module contract attaches to five checkpoints; optional modules add no required service to the default path |
 | Add minimal useful UI | Security notices in Playground; detailed control/evidence in Security Center |
 | Verify core behavior | 51 automated tests plus live and fresh real-model verification commands |
 | Keep judging reproducible | Local Docker path, one-command startup, optional SingGuard and no ECS dependency |
@@ -266,10 +267,10 @@ npm run verify:live
 # Fresh real Ark + Docker Runtime commit/deny/rollback/later-safe acceptance
 npm run verify:e2e
 
-# Type checks, 51 tests, production builds and strict prepared-demo evidence
+# Type checks, 51 tests, production builds and strict reviewer-scenario evidence
 npm run verify:submission
 ```
 
-The full test mapping is in [VALIDATION.md](VALIDATION.md), the live cases are in
-[CASEBOOK.md](CASEBOOK.md), and the three-minute presentation sequence is in
-[DEMO.md](DEMO.md).
+The full test mapping is in [VALIDATION.md](VALIDATION.md), the additional cases
+are in [CASEBOOK.md](CASEBOOK.md), and the complete reviewer reproduction path is
+in [DEMO.md](DEMO.md).

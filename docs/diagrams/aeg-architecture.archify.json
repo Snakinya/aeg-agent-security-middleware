@@ -2,10 +2,10 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "AEG v3 Agent Security Middleware Runtime",
+    "title": "AEG Agent Security Middleware Runtime",
     "subtitle": "Immutable transaction kernel, five checkpoints and tightening-only security modules",
     "locale": "en",
-    "output": "aeg-v3-architecture.html",
+    "output": "aeg-architecture.html",
     "animation": "trace",
     "visual_preset": "signal-flow",
     "quality_profile": "showcase",

@@ -1,4 +1,4 @@
-# AEG v3 Submission Guide
+# Challenge Requirements and AEG Evidence
 
 **Challenge:** Agent Launchpad: Design and Build Lightweight Agent Middleware.
 AEG extends the supplied platform with a lightweight, pluggable security
@@ -6,6 +6,11 @@ middleware Runtime. Its central success case is a forbidden mixed Run that
 leaves the protected workspace unchanged, followed by a successful safe Run on
 the same Agent. Policy, approval, identity, model analysis and trace evidence
 participate in the same governed execution path.
+
+This document maps the official requirements and evaluation criteria to
+repository evidence. Identity, observability, approval and safety are related
+capabilities selected for one Agent security middleware story; the challenge
+does not require them as a checklist.
 
 ## Middleware problem
 
@@ -20,7 +25,7 @@ and pluggable analyzers, pauses exact high-risk manifests for human approval,
 and then atomically commits or discards the entire result. Every decision is
 correlated in a redacted, HMAC-chained event ledger.
 
-## Submission story
+## Middleware rationale
 
 > AEG is an Agent security middleware Runtime: a non-bypassable transactional
 > effect kernel surrounded by configurable modules that may observe or tighten
@@ -38,12 +43,12 @@ declared HTTP mediation, trace correlation, and evidence.
 | End-to-end middleware behavior | 40% | Playground → Intake → disposable Runtime → measured manifest → policy/approval → commit or rollback; Security Center shows the correlated Run. |
 | Technical design and integration | 25% | Typed module contract, five fixed checkpoints, most-restrictive decision ordering, per-Agent profiles, trusted/untrusted boundary, Architecture page. |
 | Verification and robustness | 20% | Automated normal, denial, approval, digest replacement, policy invalidation, symlink, HTTP and degradation tests; redaction, cleanup, hash proof and HMAC verification. |
-| Demo and reproducibility | 15% | `npm run poc`, `npm run check`, three-minute script, casebook, one-page interactive architecture diagram and explicit limits. |
+| Demo and reproducibility | 15% | `npm run poc`, `npm run check`, reviewer reproduction guide, casebook, one-page interactive architecture diagram and explicit limits. |
 
 ## Required deliverables
 
 - Reviewer-facing design narrative: [DESIGN_STORY.md](DESIGN_STORY.md)
-- Three-minute live demo: [DEMO.md](DEMO.md)
+- Demo reproduction steps: [DEMO.md](DEMO.md); the submission video shows the same scenario in three minutes
 - One-page architecture diagram: [interactive HTML](../apps/web/public/diagrams/aeg-architecture.html)
 - Reproducible repository: README, automated checks, [casebook](CASEBOOK.md),
   [validation evidence](VALIDATION.md), design documents and declared limitations
@@ -124,13 +129,19 @@ configured to an operator-managed endpoint in Security Center → Modules.
 - JSON persistence and the local HMAC key support one POC control-plane process.
   Production evidence needs external identity, KMS signing and durable storage.
 
-## Final pre-submission gate
+## Core acceptance evidence
 
-- [ ] Baseline create, chat, follow-up, stop and restart flow passes in a real container.
-- [ ] The live Run uses the configured Ark model and produces a real effect.
-- [ ] Normal, denial/recovery and later-safe cases are visible in Security Center.
-- [ ] `npm run check` and `npm audit --omit=dev` pass.
-- [ ] The architecture HTML opens and all six Security Center pages are usable.
-- [ ] Repository and Git history contain no credential or local model artifact.
-- [ ] Video contains no terminal environment, `.env`, browser storage or real secret.
-- [ ] Repository URL is accessible to judges and setup requires no private dependency.
+| Official checklist item | Repository or Runtime evidence |
+| --- | --- |
+| Clone, start, create or test an Agent | Root README and `npm run poc`; the Starter Kit lifecycle and Playground remain available |
+| Meaningful team-designed middleware | Transaction kernel, policy profiles, module registry, approvals, evidence ledger and Security Center |
+| Real backend or Runtime execution | `AgentService` stages each Run and the trusted control plane measures, decides and commits or restores effects |
+| Understandable and reproducible POC | [DEMO.md](DEMO.md), [CASEBOOK.md](CASEBOOK.md), [VALIDATION.md](VALIDATION.md) and the interactive architecture |
+| `npm run check` | 12 test files, 51 tests, TypeScript checks and production builds pass |
+| Secret safety | `.env` and local model files are ignored; redaction tests and repository scans cover stored evidence and source |
+| Defined threat is contained | Mixed `.env` case rolls back with equal before/after hashes and a later safe Run succeeds |
+| Correlated trace and attribution | Security Center links Human, Agent, session, Run, checkpoints, modules, effects and signed events |
+
+The required three-minute video should show the same browser scenario documented
+in [DEMO.md](DEMO.md). Repository access must be granted to reviewers before the
+submission deadline.

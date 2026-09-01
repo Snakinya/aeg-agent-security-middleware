@@ -6,9 +6,10 @@ Codex-session integrity, plus external HTTP actions declared through AEG. A
 typed module registry, Run-scoped delegation, and one security-event contract
 make the enforcement and evidence planes independently extensible.
 
-Open the [interactive one-page AEG v3 architecture](../apps/web/public/diagrams/aeg-architecture.html)
-for the submission diagram, trace animation, light/dark themes and export. Its
-validated Archify source is [diagrams/aeg-v3-architecture.json](diagrams/aeg-v3-architecture.json).
+Open the [interactive one-page AEG architecture](../apps/web/public/diagrams/aeg-architecture.html)
+for the required architecture diagram, trace animation, light/dark themes and
+export. Its validated Archify source is
+[diagrams/aeg-architecture.archify.json](diagrams/aeg-architecture.archify.json).
 
 ## Design claim and scope
 
@@ -276,7 +277,7 @@ through the outbox are checked and sent only by the trusted executor.
 
 Open channels: universal Runtime egress interception, Ark key exposure inside
 the active Runtime, host administrator access, multi-tenant isolation, remote
-compensation and distributed transactions. P1 covers the declared HTTP action
+compensation and distributed transactions. The declared HTTP gateway covers the
 path and does not make a general confidentiality or data-loss-prevention claim.
 The local Human principal is an attribution model layered behind the optional
 shared access token; it is not production authentication.

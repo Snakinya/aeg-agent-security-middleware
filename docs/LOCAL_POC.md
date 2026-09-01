@@ -2,7 +2,7 @@
 
 The local profile runs the React/Fastify control plane on macOS or Linux and
 starts every Codex turn in a disposable Docker, Colima, or Podman container.
-Only the Volcengine Ark model API is remote.
+Only the BytePlus ModelArk API is remote.
 
 ## Start
 

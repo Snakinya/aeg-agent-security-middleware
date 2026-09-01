@@ -1,11 +1,12 @@
 # Deployment
 
-Use one of two Volcengine ECS paths:
+Use one of two BytePlus ECS paths:
 
 - Install and deploy to an existing Linux ECS instance.
 - Provision the complete network and ECS stack with Terraform.
 
-Both profiles require a Volcengine Ark API key and a Responses-capable endpoint.
+Both profiles require a BytePlus ModelArk API key and a Responses-compatible
+endpoint.
 
 ## Existing Linux ECS
 

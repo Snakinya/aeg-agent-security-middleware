@@ -1,4 +1,4 @@
-# AEG v3 Demo Casebook
+# AEG Demo Casebook
 
 Use one Agent for all cases so Activity can show a complete per-Agent history.
 Harmless placeholders are used throughout. Never paste a real credential.

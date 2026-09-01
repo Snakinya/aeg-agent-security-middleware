@@ -210,11 +210,11 @@ real workspace before and after hashes to match exactly.
 
 ## Current boundary
 
-- P0 covers filesystem effects and Codex session state.
-- P1 implements a declared-action HTTP gateway with an allowlist, SSRF checks,
+- The transaction kernel covers filesystem effects and Codex session state.
+- The declared-action HTTP gateway implements an allowlist, SSRF checks,
   secret-bearing input denial, digest-bound approval, idempotency key and
   response evidence.
-- Runtime outbound network access remains open for Ark. The P1 guarantee applies
+- Runtime outbound network access remains open for Ark. The HTTP guarantee applies
   to actions declared through the gateway; it does not claim universal egress
   interception or data-loss prevention.
 - Runtime containers are a development isolation layer, not hardened tenant
