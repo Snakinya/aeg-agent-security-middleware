@@ -4,6 +4,40 @@ Agent Effect Gateway (AEG) is the security middleware implemented in this
 repository. It treats the model, Runtime, workspace instructions, generated
 commands, and Runtime-reported trace as untrusted.
 
+## Threat model
+
+### Protected assets
+
+- the persistent Agent workspace and committed Codex session state;
+- environment, VCS and platform metadata inside the governed workspace boundary;
+- approval authority and policy configuration;
+- integrity and confidentiality of stored security evidence;
+- declared external HTTP targets and request bodies.
+
+### Adversary capabilities considered
+
+An attacker may influence a prompt, repository instruction or model output; ask
+the Runtime to mix safe and prohibited changes; falsify or omit Runtime trace;
+replace staged content after a human reviews it; race the real workspace; submit
+unsafe paths or links; request an external destination; or cause an analyzer,
+Runtime or HTTP target to fail.
+
+The model excludes a malicious host administrator, kernel/container escape,
+production cross-tenant identity compromise and arbitrary Runtime egress. The
+POC records these as residual risks instead of presenting unsupported controls.
+
+| Threat | Implemented control | Failure/recovery evidence | Residual risk |
+| --- | --- | --- | --- |
+| Prompt injection causes a forbidden write | Measured effects, locked hard-deny and complete-manifest rollback | `.env` mixed Run; equal before/after hashes | Runtime may still perform ungoverned network traffic |
+| Runtime lies in its trace | Trace is evidence only; policy uses control-plane diff | Trace correlation/mismatch tests | Kernel/host compromise is excluded |
+| Approval content is replaced | Canonical digest, policy version, before-state and TTL revalidation | Digest-replacement test | Human may approve genuinely dangerous exact content |
+| Plug-in weakens policy | Tightening-only precedence and locked kernel modules | Registry tests and live verifier | A buggy module may over-block availability |
+| Path or link escapes the workspace | Canonical relative paths, symlink/hardlink rejection | Negative filesystem tests | Container escape is excluded |
+| External request reaches an unsafe target | Platform allowlist, Agent subset, SSRF/method/header/body rules | HTTP negative tests and simulator | Universal L3 egress is not implemented |
+| Classifier is unavailable or wrong | Visible degradation; deterministic controls remain authoritative | SingGuard degradation tests/events | Probabilistic false positives/negatives remain |
+| Audit file is edited | HMAC chain verification and degraded posture | Ledger mutation test | Same-host key is not host-admin resistant |
+| Commit partially fails | Pre-commit snapshot, restore and final hash verification | Partial-apply recovery test | Remote services need separate compensation |
+
 ## Modular middleware contract
 
 `SecurityModuleRegistry` is the stable extension seam. Each module declares an

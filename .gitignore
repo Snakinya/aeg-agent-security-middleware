@@ -15,3 +15,5 @@ docs/diagrams/*.visual-check.*
 deploy/volcengine/.terraform/
 deploy/volcengine/*.tfstate*
 deploy/volcengine/terraform.tfvars
+submission-media/devpost/
+submission-media/browser-source/

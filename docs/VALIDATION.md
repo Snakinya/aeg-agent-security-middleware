@@ -1,7 +1,54 @@
 # Validation Evidence
 
-Last full local verification: 2026-08-29, macOS with Docker Desktop and a real
-Ark endpoint. Credentials and local model files were excluded from all evidence.
+Latest code and running-state verification: 2026-08-31. Real Ark/container
+acceptance: 2026-08-29 on macOS with Docker Desktop. Credentials and local model
+files were excluded from all evidence.
+
+## Verification entry points
+
+The checks are separated so a reviewer can distinguish pure automated tests
+from evidence produced by the running middleware.
+
+| Command | Requires a running AEG instance | What it proves |
+| --- | --- | --- |
+| `npm run check` | No | Type safety, 51 automated tests and both production builds |
+| `npm run verify:live` | Yes | API health, Ark/Codex/Runtime readiness, locked kernel modules, identity, policy simulation, ledger and any available Run evidence |
+| `npm run verify:demo` | Yes | Everything above, plus mandatory normal-commit and exact-rollback evidence |
+| `npm run verify:e2e` | Yes | Creates a disposable Agent and executes fresh real Ark/container normal-commit and hard-deny/rollback cases |
+| `npm run verify:submission` | Yes | `npm run check` followed by the strict demo-evidence verifier |
+| `npm audit --omit=dev` | No, network may be required | Production dependency vulnerability report |
+
+Recommended submission gate:
+
+```bash
+# Terminal A
+ARK_API_KEY=your-key ARK_MODEL=your-model npm run poc
+
+# Terminal B, after one normal and one denial case exist
+npm run verify:submission
+npm audit --omit=dev
+```
+
+`verify-running.mjs` is read-only. It does not create an Agent, invoke a model,
+approve an action or modify a workspace. It discovers the running AEG service,
+including the local `3100` fallback used when port `3000` is occupied. Set
+`AEG_BASE_URL` to verify a specific deployment.
+
+`verify:e2e` is the fresh-environment acceptance command. It calls the configured
+Ark model twice, creates a disposable Agent, checks measured effects, hashes,
+correlated recovery events and the final ledger, then removes the Agent using the
+documented archive policy. Supply `--keep` or `AEG_E2E_KEEP=true` only when its
+evidence should remain visible for debugging or recording.
+
+Expected strict result for the prepared demo state:
+
+```text
+PASS: 13 passed, 0 skipped, 0 failed
+```
+
+The verifier fails when the ledger is invalid, a locked module is disabled or
+degraded, `.env` is not a locked denial, the Runtime is unavailable, a Run is
+orphaned, or either required demo outcome is missing.
 
 ## Automated gate
 
@@ -21,6 +68,21 @@ digest replacement, symlink rejection, Intake approval before Runtime, policy
 change invalidation, declared HTTP approval and replacement, effective two-layer
 HTTP simulation, module tightening, locked modules, SingGuard risk/no-risk and
 classifier degradation.
+
+## Claim-to-test matrix
+
+| Claim | Primary automated test | Running evidence |
+| --- | --- | --- |
+| The Runtime receives disposable state | `container-codex-runner.test.ts`, `effect-gateway.test.ts` | `run.staged` event from `runtime-containment` |
+| Hard deny rejects the complete manifest | `agent-service.test.ts`, `effect-policy.test.ts` | Rolled-back `.env` Run with equal before/after hashes |
+| Approval cannot be reused after replacement | `agent-service.test.ts` digest-replacement case | Approval shows manifest digest and policy version |
+| Policy/module changes invalidate approval | `agent-service.test.ts`, `security-modules.test.ts` | `policy.updated` or `module.configured` ledger event |
+| Modules cannot relax a decision | `security-modules.test.ts` | Locked module status and module badges in Activity |
+| Unsafe paths cannot escape the workspace | `effect-gateway.test.ts` symlink/hardlink cases | Denial event when triggered |
+| Declared HTTP is constrained and attributable | `external-effect-gateway.test.ts` | Canonical request, approval and receipt in Run evidence |
+| Classifier loss is observable | `security-modules.test.ts`, `agent-service.test.ts` | `singguard-nsfa-degraded` event and deterministic policy remains active |
+| Evidence detects mutation | `security-ledger.test.ts` | `GET /api/ledger/verify` and Overview posture |
+| Secrets are removed before evidence storage | `redaction.test.ts` | Redacted payload panel in Activity |
 
 ## Real container acceptance
 

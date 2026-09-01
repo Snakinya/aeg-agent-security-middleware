@@ -10,6 +10,90 @@ Open the [interactive one-page AEG v3 architecture](../apps/web/public/diagrams/
 for the submission diagram, trace animation, light/dark themes and export. Its
 validated Archify source is [diagrams/aeg-v3-architecture.json](diagrams/aeg-v3-architecture.json).
 
+## Design claim and scope
+
+The design question is: **how can an Agent remain free to reason and execute
+tools while the platform retains authority over effects that outlive the Run?**
+
+AEG answers at the effect boundary. The Runtime may propose arbitrary workspace
+changes and one declared HTTP action. Trusted code independently measures,
+canonicalizes and decides those effects before they reach protected state.
+
+The implemented guarantee covers:
+
+- persistent files in one Agent workspace;
+- promotion of the Agent's committed Codex session state;
+- HTTP actions declared through the reserved AEG outbox.
+
+The guarantee does not cover arbitrary Runtime network traffic, a compromised
+host administrator, production tenant isolation or distributed transactions.
+Those boundaries are visible in the diagram and in the failure table below.
+
+## Security invariants
+
+These properties define correctness. Features and modules are subordinate to
+them.
+
+| ID | Invariant | Enforcement owner | Executable evidence |
+| --- | --- | --- | --- |
+| I1 | The Runtime never receives the protected workspace or committed Codex Home path. | Stager + container runner | Container request and mount tests |
+| I2 | Policy evaluates control-plane measurements, never Runtime claims. | Effect Collector | Trace-mismatch and measured-diff tests |
+| I3 | A hard-denied effect makes the complete manifest ineligible for commit. | Kernel policy | Mixed `.env` + safe-file rollback test |
+| I4 | A module may preserve or tighten a decision; it cannot relax one. | Module registry | Module precedence and locked-module tests |
+| I5 | Approval authorizes one canonical digest, policy version, before-state and TTL. | Approval Manager | Replacement and policy-invalidation tests |
+| I6 | Commit either reaches the verified target tree or restores the snapshot. | Trusted Committer | Partial-apply recovery and hash tests |
+| I7 | Rejected Runtime session state is never promoted. | AgentService | Rollback/session continuity tests |
+| I8 | Every security decision is correlated and redacted before entering the chained ledger. | Event bus + ledger | Redaction, correlation and HMAC verification tests |
+
+For decisions ordered as `allow < require_approval < deny`, the registry applies:
+
+```text
+finalDecision = max(kernelDecision, moduleContribution₁, …, moduleContributionₙ)
+```
+
+No configuration value participates in commit directly. Configuration changes
+alter the policy fingerprint, create a signed event and invalidate outstanding
+approvals.
+
+## Control ownership
+
+| Decision or fact | Authoritative component | Untrusted input accepted | Failure action |
+| --- | --- | --- | --- |
+| Baseline state | Stager | Existing workspace/session bytes | Abort before Runtime if the staged hash differs |
+| Runtime activity | Container runner | Prompt, model output, commands, trace | Timeout, cancel and discard staging |
+| File effects | Effect Collector | Staged filesystem tree | Reject unsafe links/paths; compute canonical manifest |
+| Policy result | Kernel + module registry | Profile and module contributions | Strictest result wins; configuration errors fail closed |
+| Human approval | Approval Manager | Human decision | Expire on digest, policy, TTL or before-state mismatch |
+| Persistence | Trusted Committer | Approved manifest only | Restore snapshot and verify the restored hash |
+| External action | External HTTP Gateway | Canonical outbox request | Deny SSRF/secret/method violations; record uncertain timeout |
+| Evidence | Event bus + HMAC ledger | Redacted event payload | Report degraded posture if chain verification fails |
+
+## Transaction protocol and safety property
+
+Let `W₀` be the protected workspace hash before a Run, `S` its staged copy,
+`M` the measured canonical manifest and `P` the complete policy fingerprint.
+
+An effect may persist only when:
+
+```text
+hash(S_baseline) = W₀
+AND decision(M, P) ∈ {allow, approved(require_approval)}
+AND digest(M, P, W₀) is unchanged immediately before execution
+AND every target path passes trusted path validation
+```
+
+The terminal postcondition is one of:
+
+```text
+completed   → protected state equals the verified application of M
+rolled_back → protected workspace hash equals W₀
+failed      → no unverified state is reported as committed
+```
+
+AEG deliberately denies a Run that mixes ordinary file changes with an external
+request. A local filesystem transaction and a remote service cannot honestly be
+presented as one atomic transaction without a remote compensation protocol.
+
 ## Trust boundary and data flow
 
 ```mermaid
@@ -130,6 +214,28 @@ Every Run follows this protocol:
 The built-in `guardrail-model` adapter supports local SingGuard-NSFA or an Ark
 classifier endpoint. It is a probabilistic Intake signal; a classifier outage is
 recorded as module degradation while deterministic kernel controls remain active.
+
+## Key decisions and trade-offs
+
+| Decision | Why it was selected | Alternative rejected for this POC |
+| --- | --- | --- |
+| Transactional staging around the Runtime | Contains mixed safe and unsafe changes and supplies exact recovery evidence. | Asking the model to follow file rules cannot enforce persistence. |
+| Measured diff as authority | A compromised or confused Runtime cannot authorize itself through its trace. | Treating tool logs as the policy input. |
+| Fixed checkpoints with typed hooks | Keeps the lifecycle understandable while allowing analyzers and policy adapters to evolve. | An unrestricted event plug-in API with commit access. |
+| Tightening-only arbitration | Preserves composability without allowing one module to undo another control. | Last-writer-wins plug-in decisions. |
+| Digest-bound approval | Prevents content replacement and stale-policy approval. | Approving only a path, tool name or natural-language summary. |
+| Local HMAC chain | Produces reproducible tamper evidence without external infrastructure. | Claiming host-compromise resistance; production requires KMS/WORM storage. |
+| Declared HTTP gateway | Demonstrates trusted external execution, SSRF checks and receipts at hackathon scale. | Claiming universal egress control before an L3 proxy exists. |
+| JSON single-process store | Preserves the Starter Kit's simple judging path. | Introducing a database cluster unrelated to the core middleware claim. |
+
+## Extension rule
+
+A new module must declare its manifest, configuration schema, health behavior and
+one or more hooks. It may return a structured Intake signal, contribute a stricter
+effect decision or observe redacted events. It receives no commit primitive and
+no Ark credential. Tests must prove its degraded behavior and that it cannot
+relax a kernel decision. See [SECURITY_MODULES.md](SECURITY_MODULES.md) for the
+contract and example implementation.
 
 ## Persistent layout
 

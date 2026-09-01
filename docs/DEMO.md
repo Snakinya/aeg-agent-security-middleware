@@ -3,6 +3,62 @@
 The recording must contain one real frontend-to-Agent Run, one normal outcome,
 one denial or recovery outcome, and the evidence that explains both.
 
+## Reproducibility contract
+
+A reviewer needs Node.js 22+, one supported container engine and an Ark API key
+and model ID. ECS, Terraform and SingGuard are optional. The deterministic
+transaction kernel, policy, approval, rollback and ledger work without the local
+classifier.
+
+```bash
+git clone <repository-url> aeg
+cd aeg
+cp .env.example .env
+# Set only ARK_API_KEY and ARK_MODEL in .env.
+npm run poc
+```
+
+Open <http://localhost:3000>, create or select an Agent and run Cases 1 and 3
+from [CASEBOOK.md](CASEBOOK.md). In another terminal:
+
+```bash
+npm run verify:demo
+```
+
+A reviewer who wants a fresh automated real-model acceptance run can instead
+execute:
+
+```bash
+npm run verify:e2e
+```
+
+It creates one disposable Agent, makes one allowed file change, attempts one
+mixed `.env` change, proves exact rollback and correlated evidence, verifies the
+ledger, and removes the Agent. It normally takes about one minute and consumes
+two Ark turns.
+
+The expected result is `PASS: 13 passed, 0 skipped, 0 failed`. The command is
+read-only and prints no key, prompt payload or file content. When another local
+application owns port 3000, start with `PORT=3100 PUBLIC_PORT=3100 npm run poc`;
+the verifier discovers that fallback automatically, or accepts
+`AEG_BASE_URL=http://127.0.0.1:3100`.
+
+For a clean clone with no prepared Runs, `npm run verify:live` checks the full
+running control plane and marks only the historical Run evidence as skipped.
+After Cases 1 and 3, the strict verifier must pass.
+
+## Evidence contract for the three-minute demo
+
+| Demo statement | Visible behavior | Independent evidence |
+| --- | --- | --- |
+| A real Agent still works | Playground completes a source task | Measured effects and changed workspace hash |
+| Persistence is mediated | Run passes five checkpoints | Activity events identify the responsible modules |
+| Hard deny cannot be configured away | `.env` is denied | Simulator reports locked rule; mixed Run rolls back |
+| Recovery is exact | Safe sibling change also stays out | Before and after workspace hashes match |
+| Approval covers exact content | Pending manifest shows digest and policy version | Replacement and policy invalidation tests |
+| Optional model guard is modular | SingGuard event appears at Intake | Module health/configuration and normalized tags |
+| Evidence is verifiable | Overview reports protected | HMAC chain verification succeeds |
+
 ## Before recording
 
 1. Run `npm run check` and `npm audit --omit=dev`.

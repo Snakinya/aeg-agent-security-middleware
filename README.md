@@ -1,11 +1,18 @@
-# Volc Agent Launchpad
+# AEG — Zero-Trust Agent Security Middleware
 
-A minimal Agent platform for three-day middleware hackathons. It provides Agent
-CRUD, a browser Playground, persistent workspaces, and Codex CLI backed by the
-Volcengine Ark Responses API.
+Agent Effect Gateway (AEG) extends the provided Volc Agent Launchpad Starter Kit
+with a trusted, transactional middleware boundary between an untrusted Agent
+Runtime and persistent effects. It stages each Run, measures the resulting file
+and declared HTTP effects, applies versioned per-Agent policy and pluggable
+analyzers, and then commits, pauses for exact approval, or restores the protected
+state.
 
-Run it locally with Docker, Colima, or rootless Podman, or deploy it to
-Volcengine ECS.
+The original Agent CRUD, lifecycle, Playground, persistent sessions, Codex CLI
+Runtime, and Volcengine Ark integration remain available. AEG adds the middleware
+behavior, Security Center, evidence model, policy controls, tests, and demo cases.
+
+Run the local judging path with Docker, Colima, or rootless Podman, or use the
+optional Volcengine ECS deployment path.
 
 > [!WARNING]
 > This is a single-user proof of concept. Agent Effect Gateway protects
@@ -16,6 +23,18 @@ Volcengine ECS.
 > use production data or credentials. See [SECURITY.md](SECURITY.md).
 
 ## Screenshots
+
+### Security posture and five checkpoints
+
+![AEG Security Center overview](submission-media/devpost-3x2/02-security-overview.png)
+
+### Correlated Agent, session, Run, and middleware evidence
+
+![AEG Agent Run trace](submission-media/devpost-3x2/03-agent-run-trace.png)
+
+### Pluggable SingGuard-NSFA analyzer
+
+![AEG Guardrail Model module](submission-media/devpost-3x2/06-modules-singguard.png)
 
 ### Agent Playground
 
@@ -326,19 +345,55 @@ boundaries.
 
 ## Validation
 
+Run the static gate before starting the platform:
+
 ```bash
 npm run check
+```
+
+After `npm run poc` is running, verify the real control plane without changing
+its state:
+
+```bash
+npm run verify:live
+```
+
+Generate a fresh real Ark/container acceptance run with a disposable Agent:
+
+```bash
+npm run verify:e2e
+```
+
+This sends two harmless tasks, proves one measured commit and one exact rollback,
+verifies correlated events and the HMAC ledger, and then removes the Agent.
+
+After the normal commit and rollback cases from the casebook exist, run the
+strict submission gate:
+
+```bash
+npm run verify:submission
+```
+
+The strict verifier requires API/Runtime readiness, a valid HMAC chain, active
+locked modules, a locked `.env` denial, correlated normal and rollback Runs,
+equal rollback hashes, and no orphan active Run. It prints no credential or
+unredacted content. Additional infrastructure checks are:
+
+```bash
+npm audit --omit=dev
 terraform fmt -check -recursive deploy/volcengine
 docker compose config
 ```
 
 ## Documentation
 
+- [Design story for reviewers](docs/DESIGN_STORY.md)
 - [Hackathon submission guide](docs/SUBMISSION.md)
 - [Reproducible demo casebook](docs/CASEBOOK.md)
 - [Three-minute recording script](docs/DEMO.md)
 - [Validation evidence](docs/VALIDATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Security module contract](docs/SECURITY_MODULES.md)
 - [Interactive one-page architecture](apps/web/public/diagrams/aeg-architecture.html)
 - [Local POC](docs/LOCAL_POC.md)
 - [Deployment](docs/DEPLOYMENT.md)

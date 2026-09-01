@@ -35,6 +35,7 @@ declared HTTP mediation, trace correlation, and evidence.
 
 ## Required deliverables
 
+- Reviewer-facing design narrative: [DESIGN_STORY.md](DESIGN_STORY.md)
 - Three-minute live demo: [DEMO.md](DEMO.md)
 - One-page architecture diagram: [interactive HTML](../apps/web/public/diagrams/aeg-architecture.html)
 - Reproducible repository: README, automated checks, [casebook](CASEBOOK.md),
@@ -61,6 +62,30 @@ cp .env.example .env
 npm run check
 npm run poc
 ```
+
+With the POC running, execute the read-only live verifier in a second terminal:
+
+```bash
+npm run verify:live
+```
+
+To generate fresh real Ark/container evidence automatically:
+
+```bash
+npm run verify:e2e
+```
+
+This creates a disposable Agent, runs one allowed commit and one hard-denied
+rollback, verifies hashes/events/the ledger, and then removes the Agent.
+
+After Case 1 and Case 3 from the casebook exist, the strict submission gate is:
+
+```bash
+npm run verify:submission
+```
+
+It fails unless the build/tests pass and the running instance exposes both a
+measured normal commit and a hard-denied Run with exact hash recovery.
 
 Open <http://localhost:3000>, select or create an Agent, run the baseline task,
 then follow [CASEBOOK.md](CASEBOOK.md). The optional local classifier runs in a
