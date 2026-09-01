@@ -1,9 +1,11 @@
 # AEG v3 Submission Guide
 
-**Selected competition track:** Track C — The Kill Switch (Safety and
-Sandboxing). AEG's scored success case is a forbidden mixed Run that leaves the
-protected workspace unchanged, followed by a successful safe Run on the same
-Agent. Trace, identity and model analysis provide supporting security evidence.
+**Challenge:** Agent Launchpad: Design and Build Lightweight Agent Middleware.
+AEG extends the supplied platform with a lightweight, pluggable security
+middleware Runtime. Its central success case is a forbidden mixed Run that
+leaves the protected workspace unchanged, followed by a successful safe Run on
+the same Agent. Policy, approval, identity, model analysis and trace evidence
+participate in the same governed execution path.
 
 ## Middleware problem
 

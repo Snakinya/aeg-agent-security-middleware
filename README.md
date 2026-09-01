@@ -1,7 +1,8 @@
 # AEG — Zero-Trust Agent Security Middleware
 
-> **TikTok TechJam 2026 · Agent Middleware · Selected Track C — The Kill
-> Switch (Safety and Sandboxing)**
+> **Agent Launchpad: Design and Build Lightweight Agent Middleware**
+>
+> TikTok TechJam 2026 challenge submission
 
 Agent Effect Gateway (AEG) extends the provided Volc Agent Launchpad Starter Kit
 with a trusted, transactional middleware boundary between an untrusted Agent
@@ -19,13 +20,14 @@ optional Volcengine ECS deployment path.
 
 ## Judge guide
 
-AEG enters **one competition track: Track C**. Its protected asset is the
-persistent Agent workspace and committed session state. A malicious mixed Run
-that writes a forbidden `.env` file is executed only in staging, denied by the
-trusted middleware, discarded as one transaction, and verified by equal
-before/after workspace hashes. A later safe Run can proceed normally. Trace,
-identity and model analysis support this containment claim; they are not
-separate track submissions.
+AEG is our implementation for **Agent Launchpad: Design and Build Lightweight
+Agent Middleware**. It adds a lightweight, pluggable security middleware layer
+to the supplied Agent platform while preserving Agent creation, lifecycle,
+Playground, Ark and persistent sessions. The core demonstration runs a malicious
+mixed change only in staging, denies the forbidden `.env` effect, discards the
+complete transaction, proves the protected workspace hash is unchanged, and
+then accepts a later safe Run. Policy, approval, identity, model analysis and
+trace evidence are modules around the same middleware Runtime.
 
 ### Start here
 
